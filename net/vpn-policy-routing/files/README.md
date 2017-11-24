@@ -1,13 +1,13 @@
-# OpenVPN Policy-Based Routing
+# VPN Policy-Based Routing
 
 ## Description
-This service allows you to define rules (policies) for routing traffic via WAN or your OpenVPN tunnel(s). Policies can be set based on any combination of local/remote ports, local/remote IPv4 or IPv6 addresses/subnets or domains. This service supersedes the [VPN Bypass](https://github.com/openwrt/packages/blob/master/net/vpnbypass/files/README.md) service, by supporting IPv6 and by allowing you to set explicit rules not just for WAN gateway (bypassing OpenVPN tunnel), but for multiple OpenVPN tunnels and Wireguard interfaces as well.
+This service allows you to define rules (policies) for routing traffic via WAN or your OpenVPN/Wireguard tunnel(s). Policies can be set based on any combination of local/remote ports, local/remote IPv4 or IPv6 addresses/subnets or domains. This service supersedes the [VPN Bypass](https://github.com/openwrt/packages/blob/master/net/vpnbypass/files/README.md) service, by supporting IPv6 and by allowing you to set explicit rules not just for WAN gateway (bypassing OpenVPN tunnel), but for multiple OpenVPN tunnels and Wireguard interfaces as well.
 
 ## Features
 
 #### Gateways/Tunnels
-- Any policy can target either WAN or an OpenVPN tunnel.
-- Multiple OpenVPN interfaces/tunnels supported (with device names tun\* or tap\*).
+- Any policy can target either WAN, an OpenVPN tunnel or a Wireguard interface.
+- Multiple OpenVPN tunnels supported (with device names tun\* or tap\*).
 - Multiple Wireguard interfaces supported (with protocol names wireguard\*).
 
 #### IPv4/IPv6/Port-Based Policies
@@ -86,7 +86,7 @@ opkg update
 Default configuration has service disabled (use Web UI to enable/start service or run ```uci set vpn-policy-routing.config.enabled=1```) and has some example policies which can be safely deleted.
 
 ## Discussion
-Please head to [LEDE Project Forum](https://forum.lede-project.org/t/openvpn-policy-based-routing-web-ui/1422) for discussions of this service.
+Please head to [LEDE Project Forum](https://forum.lede-project.org/t/openvpn-wireguard-policy-based-routing-web-ui/1422) for discussions of this service.
 
 #### Getting help
 If things are not working as intended, please include the output of ```/etc/init.d/vpn-policy-routing support``` with your post, as well as the output of ```/etc/init.d/vpn-policy-routing reload``` with verbosity setting set to maximum.
@@ -99,13 +99,17 @@ WARNING: while paste.ee uploads are unlisted, they are still publicly available.
 - Initial release.
 
 ## Notes/Known Issues
-- While you can select down/inactive OpenVPN tunnel in Web UI, the appropriate tunnel must be up/active for the policies to properly work without errors on service start.
+- While you can select down/inactive OpenVPN/Wireguard tunnel in Web UI, the appropriate tunnel must be up/active for the policies to properly work without errors on service start.
 
-- Service does not alter the default routing. Depending on your OpenVPN settings (and settings of the OpenVPN server you are connecting to), the default routing might be set to go via WAN or via OpenVPN tunnel. This service affects only routing of the traffic matching the policies. If you want to override default routing, consider adding the following to your OpenVPN tunnel(s) configs:
+- Service does not alter the default routing. Depending on your OpenVPN/Wireguard settings (and settings of the OpenVPN/Wireguard server you are connecting to), the default routing might be set to go via WAN or via OpenVPN/Wireguard tunnel. This service affects only routing of the traffic matching the policies. If you want to override default routing, consider adding the following to your OpenVPN tunnel(s) config:
 ```
 option route_nopull '1'
 ```
 <!-- option route '0.0.0.0 0.0.0.0'  -->
+  and set the following for your Wireguard tunnel(s) config:
+```
+option route_allowed_ips '0'
+```
 
 ## Thanks
 I'd like to thank everyone who helped create, test and troubleshoot this service. Without contributions from [@hnyman](https://github.com/hnyman), [@dibdot](https://github.com/dibdot), [@danrl](https://github.com/danrl), [@tohojo](https://github.com/tohojo), [@cybrnook](https://github.com/cybrnook), [@nidstigator](https://github.com/nidstigator), [@AndreBL](https://github.com/AndreBL) and rigorous testing by [@dziny](https://github.com/dziny), [@bluenote73](https://github.com/bluenote73) and [@buckaroo](https://github.com/pgera) it wouldn't have been possible.

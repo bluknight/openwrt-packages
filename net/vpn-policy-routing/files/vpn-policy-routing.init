@@ -37,7 +37,7 @@ export verbosity strictMode wanTableID wanMark fwMask ipv6Enabled ipsetEnabled d
 export wanIface4 wanIface6 ifaceMark ifaceTableID ifacesListAll ifacesListSupported wanGW4 wanGW6
 
 _build_ifaces_lists() { ifacesListAll="${ifacesListAll}${1} "; is_supported_interface "$1" && ifacesListSupported="${ifacesListSupported}${1} "; }
-opr_find_iface() { local _iface; network_find_wan _iface; if [ -z "$_iface" ] || ( is_wan $_iface && is_tunnel $_iface ); then for _iface in $ifacesListAll; do [ "${_iface%$1}" != "$_iface" ] && break || unset _iface; done; fi; eval "$2=$_iface"; }
+vpr_find_iface() { local _iface; network_find_wan _iface; if [ -z "$_iface" ] || ( is_wan $_iface && is_tunnel $_iface ); then for _iface in $ifacesListAll; do [ "${_iface%$1}" != "$_iface" ] && break || unset _iface; done; fi; eval "$2=$_iface"; }
 
 is_enabled() {
 		local sleepCount=1 serviceEnabled
@@ -65,7 +65,7 @@ is_enabled() {
 		source /lib/functions/network.sh; config_load network; config_foreach _build_ifaces_lists 'interface';
 
 		while : ; do
-			opr_find_iface 'wan' wanIface4; opr_find_iface 'wan6' wanIface6;
+			vpr_find_iface 'wan' wanIface4; vpr_find_iface 'wan6' wanIface6;
 			[ -n "$wanIface4" ] && network_get_gateway wanGW4 "$wanIface4"
 			[ -n "$wanIface6" ] && network_get_gateway6 wanGW6 "$wanIface6"
 			wanGW="${wanGW4:-$wanGW6}"
@@ -80,8 +80,8 @@ is_enabled() {
 		fi
 }
 
-is_wg() { local proto; proto=$( -q get network.$1.proto); if [ "${proto:0:9}" == "wireguard" ]; then return 0; else return 1; fi; }
-is_vpn() { local dev; dev=$( -q get network.$1.ifname); if [[ "${dev:0:3}" == "tun" || "${dev:0:3}" == "tap" ]]; then return 0; else return 1; fi; }
+is_wg() { local proto; proto=$(uci -q get network.$1.proto); if [ "${proto:0:9}" == "wireguard" ]; then return 0; else return 1; fi; }
+is_vpn() { local dev; dev=$(uci -q get network.$1.ifname); if [[ "${dev:0:3}" == "tun" || "${dev:0:3}" == "tap" ]]; then return 0; else return 1; fi; }
 is_tunnel() { if is_vpn "$1" || is_wg "$1"; then return 0; else return 1; fi; }
 is_wan() { if [[ -n "$wanIface4" && "$1" == "$wanIface4" ]]; then return 0; else return 1; fi; }
 is_wan6() { if [[ -n "$wanIface6" && "$1" == "$wanIface6" ]]; then return 0; else return 1; fi; }
@@ -148,8 +148,8 @@ insert_policy() {
 	mark=$(eval echo "\$mark_$iface")
 
 	[ -z "$mark" ] && processPolicyStatus="${processPolicyStatus}${_ERROR_}: unknown fw_mark for ${iface}!\n"
-#	param="-t mangle -I OPR_CHAIN 1 -j MARK --set-xmark ${mark}/${fwMask}"
-	param="-t mangle -A OPR_CHAIN -j MARK --set-xmark ${mark}/${fwMask}"
+#	param="-t mangle -I VPR_CHAIN 1 -j MARK --set-xmark ${mark}/${fwMask}"
+	param="-t mangle -A VPR_CHAIN -j MARK --set-xmark ${mark}/${fwMask}"
 	[ -n "$laddr" ] && param="$param -s $laddr"
 	[ -n "$lport" ] && param="$param -p tcp -m multiport --sport ${lport//-/:}"
 	[ -n "$raddr" ] && param="$param -d $raddr"
@@ -271,17 +271,17 @@ table_create(){
 		if [ $ipsetEnabled -ne 0 ]; then
 			ips "create" ${iface}local "hash:net family inet comment" && ips "flush" ${iface}local || s=1
 			ips "create" ${iface}route "hash:net family inet comment" && ips "flush" ${iface}route || s=1
-			ipt -t mangle -A OPR_CHAIN -m set --match-set ${iface}local src -j MARK --set-xmark ${mark}/${fwMask} || s=1
-			[ $ipv6Enabled -ne 0 ] && { ipt -t mangle -A OPR_CHAIN -m set --match-set ${iface}local6 src -j MARK --set-xmark ${mark}/${fwMask} || s=1; }
-			ipt -t mangle -A OPR_CHAIN -m set --match-set ${iface}route dst -j MARK --set-xmark ${mark}/${fwMask} || s=1
-			[ $ipv6Enabled -ne 0 ] && { ipt -t mangle -A OPR_CHAIN -m set --match-set ${iface}route6 dst -j MARK --set-xmark ${mark}/${fwMask} || s=1; }
+			ipt -t mangle -A VPR_CHAIN -m set --match-set ${iface}local src -j MARK --set-xmark ${mark}/${fwMask} || s=1
+			[ $ipv6Enabled -ne 0 ] && { ipt -t mangle -A VPR_CHAIN -m set --match-set ${iface}local6 src -j MARK --set-xmark ${mark}/${fwMask} || s=1; }
+			ipt -t mangle -A VPR_CHAIN -m set --match-set ${iface}route dst -j MARK --set-xmark ${mark}/${fwMask} || s=1
+			[ $ipv6Enabled -ne 0 ] && { ipt -t mangle -A VPR_CHAIN -m set --match-set ${iface}route6 dst -j MARK --set-xmark ${mark}/${fwMask} || s=1; }
 		fi
-		dscp=$( -q get ${packageName}.config.${iface}_dscp)
+		dscp=$(uci -q get ${packageName}.config.${iface}_dscp)
 		if [ ${dscp:-0} -ge 1 ] && [ ${dscp:-0} -le 63 ]; then
-			ipt -t mangle -A OPR_CHAIN -m dscp --dscp ${dscp} -j MARK --set-xmark ${mark}/${fwMask} || s=1
+			ipt -t mangle -A VPR_CHAIN -m dscp --dscp ${dscp} -j MARK --set-xmark ${mark}/${fwMask} || s=1
 		fi
 		if [ "$iface" == "$icmpIface" ]; then
-			ipt -t mangle -A OPR_CHAIN -p icmp -j MARK --set-xmark ${mark}/${fwMask} || s=1
+			ipt -t mangle -A VPR_CHAIN -p icmp -j MARK --set-xmark ${mark}/${fwMask} || s=1
 		fi
 		[[ -n "$gw4" ]] && ip -4 route add default via "$gw4" table "$tid" >/dev/null 2>&1 || s=1
 		ip -4 route flush cache || s=1
@@ -375,9 +375,9 @@ start_service() {
 			rm -f "$dnsmasqFile"
 		fi
 		{ modprobe xt_set; modprobe ip_set; modprobe ip_set_hash_ip; } >/dev/null 2>&1;
-		ipt -t mangle -N OPR_CHAIN
-		ipt -t mangle -A PREROUTING -m mark --mark 0x00/${fwMask} -g OPR_CHAIN;
-		[ -n "$icmpIface" ] && ipt -t mangle -A OUTPUT -m mark --mark 0x00/${fwMask} -g OPR_CHAIN
+		ipt -t mangle -N VPR_CHAIN
+		ipt -t mangle -A PREROUTING -m mark --mark 0x00/${fwMask} -g VPR_CHAIN;
+		[ -n "$icmpIface" ] && ipt -t mangle -A OUTPUT -m mark --mark 0x00/${fwMask} -g VPR_CHAIN
 
 		output 1 'Processing interfaces '
 		config_load network; config_foreach process_interface 'interface' 'create';
@@ -407,9 +407,9 @@ stop_service() {
 	if create_lock; then
 		is_enabled || return 1
 		config_load network; config_foreach process_interface 'interface' 'destroy'
-		ipt -t mangle -D PREROUTING -m mark --mark 0x00/${fwMask} -g OPR_CHAIN
-		ipt -t mangle -D OUTPUT -m mark --mark 0x00/${fwMask} -g OPR_CHAIN
-		ipt -t mangle -F OPR_CHAIN; ipt -t mangle -X OPR_CHAIN;
+		ipt -t mangle -D PREROUTING -m mark --mark 0x00/${fwMask} -g VPR_CHAIN
+		ipt -t mangle -D OUTPUT -m mark --mark 0x00/${fwMask} -g VPR_CHAIN
+		ipt -t mangle -F VPR_CHAIN; ipt -t mangle -X VPR_CHAIN;
 		unset ifaceTableID; unset ifaceMark;
 		if [ -s "$dnsmasqFile" ]; then
 			rm -f "$dnsmasqFile"
@@ -455,10 +455,10 @@ support() {
 	json_load "$(ubus call system board)"; json_select release; json_get_var dist distribution; json_get_var vers version
 	if [ -n "$wanIface4" ]; then
 		network_get_gateway wanGW4 "$wanIface4"
-		dev="$( -q get network.${wanIface4}.ifname)"
+		dev="$(uci -q get network.${wanIface4}.ifname)"
 	fi
 	if [ -n "$wanIface6" ]; then
-		dev6="$( -q get network.${wanIface6}.ifname)"
+		dev6="$(uci -q get network.${wanIface6}.ifname)"
 		wanGW6=$(ip -6 route show | grep -m1 " dev $dev6 " | awk '{print $1}')
 		[ "$wanGW6" == "default" ] && wanGW6=$(ip -6 route show | grep -m1 " dev $dev6 " | awk '{print $3}')
 	fi
@@ -488,13 +488,13 @@ support() {
 				done; }
 		echo "============================================================"
 			echo "IP Tables"
-			[ -z "$set_d" ] && iptables -L -t mangle | grep '^OPR_CHAIN' || iptables -L -t mangle
-			iptables -v -t mangle -S OPR_CHAIN
+			[ -z "$set_d" ] && iptables -L -t mangle | grep '^VPR_CHAIN' || iptables -L -t mangle
+			iptables -v -t mangle -S VPR_CHAIN
 		[ $ipv6Enabled -ne 0 ] && {
 		echo "============================================================"
 			echo "IPv6 Tables"
-			[ -z "$set_d" ] && ip6tables -L -t mangle | grep '^OPR_CHAIN' || ip6tables -L -t mangle
-			ip6tables -v -t mangle -S OPR_CHAIN
+			[ -z "$set_d" ] && ip6tables -L -t mangle | grep '^VPR_CHAIN' || ip6tables -L -t mangle
+			ip6tables -v -t mangle -S VPR_CHAIN
 		}
 		echo "============================================================"
 			echo "Current ipsets"
@@ -511,7 +511,7 @@ support() {
 		if [ -x /usr/bin/curl ] && [ -e /usr/lib/libcrypto.so* ] && [ -e /usr/lib/libssl.so* ] && [ -e /etc/ssl/certs/ca-certificates.crt ]; then
 			json_init; json_add_string "description" "${packageName}-support"
 			json_add_array "sections"; json_add_object '0'
-			json_add_string "name" "$( -q get system.@system[0].hostname)"
+			json_add_string "name" "$(uci -q get system.@system[0].hostname)"
 			json_add_string "contents" "$(cat /var/${packageName}-support)"
 			json_close_object; json_close_array; payload=$(json_dump)
 			out=$(curl -s -k "https://api.paste.ee/v1/pastes" -X "POST" -H "Content-Type: application/json" -H "X-Auth-Token:uVOJt6pNqjcEWu7qiuUuuxWQafpHhwMvNEBviRV2B" -d "$payload")
@@ -529,7 +529,7 @@ support() {
 
 # shellcheck disable=SC2120
 validate_config() {
-	_validate_section "${packageName}" config "${1}" \
+	uci_validate_section "${packageName}" config "${1}" \
 		'enabled:integer' \
 		'strict_enforcement:integer' \
 		'verbosity:integer' \
@@ -543,7 +543,7 @@ validate_config() {
 
 # shellcheck disable=SC2120
 validate_policies() {
-	_validate_section "${packageName}" policy "${1}" \
+	uci_validate_section "${packageName}" policy "${1}" \
 		'comment:string' \
 		'gateway:string' \
 		'local_addresses:list(or(string,cidr4,cidr6))' \

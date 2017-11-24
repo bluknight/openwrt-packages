@@ -16,12 +16,12 @@ define Package/$(PKG_NAME)
 	CATEGORY:=Network
 	DEPENDS:=+ipset +iptables +resolveip +kmod-ipt-ipset
 	CONFLICTS:=vpnbypass openvpn-policy-routing
-	TITLE:=OpenVPN Policy-Based Routing Service
+	TITLE:=VPN Policy-Based Routing Service
 	PKGARCH:=all
 endef
 
 define Package/$(PKG_NAME)/description
-This service allows policy-based routing for OpenVPN tunnels and WAN interface.
+This service allows policy-based routing for OpenVPN/Wireguard tunnels and WAN interface.
 Policies can specify domains, local IPs/subnets and ports, as well as remote IPs/subnets and ports.
 endef
 
@@ -54,8 +54,9 @@ define Package/$(PKG_NAME)/postinst
 	#!/bin/sh
 	# check if we are on real system
 	if [ -z "$${IPKG_INSTROOT}" ]; then
-		if [[ -s "/etc/config/openvpn-policy-routing" && ! -e /etc/config/vpn-policy-routing ]]; then
-			sed 's/openvpn-policy-routing/vpn-policy-routing/' /etc/config/openvpn-policy-routing > /etc/config/vpn-policy-routing
+		if [[ -s "/etc/config/openvpn-policy-routing" ]]; then
+			mv /etc/config/openvpn-policy-routing /etc/config/vpn-policy-routing
+			sed -i 's/openvpn-policy-routing/vpn-policy-routing/' /etc/config/vpn-policy-routing
 		fi
 
 		while [ ! -z "$(uci -q get ucitrack.@vpn-policy-routing[-1] 2>/dev/null)" ] ; do
