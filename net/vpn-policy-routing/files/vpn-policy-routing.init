@@ -16,7 +16,7 @@ readonly readmeURL="https://github.com/stangri/openwrt-packages/blob/vpn-policy-
 export EXTRA_COMMANDS="support"
 export EXTRA_HELP="	support	Generates output required to troubleshoot routing issues
 		Use '-d' option for more detailed output
-		Use '-p' option to automatically upload data under OPR paste.ee account
+		Use '-p' option to automatically upload data under VPR paste.ee account
 			WARNING: while paste.ee uploads are unlisted, they are still publicly available
 		List domain names after options to include their lookup in report"
 
@@ -52,6 +52,7 @@ is_enabled() {
 		config_get wanMark      'config' 'wan_mark' '0x010000'
 		config_get fwMask       'config' 'fw_mask' '0xff0000'
 		config_get icmpIface    'config' 'icmp_interface'
+		config_get ignoredIfaces       'config' 'ignored_interface'
 
 		[ $serviceEnabled -gt 0 ] || { output "$_ERROR_: $serviceName is not enabled!\n"; return 1; }
 		if [ $dnsmasqEnabled -ne 0 ]; then
@@ -85,7 +86,8 @@ is_vpn() { local dev; dev=$(uci -q get network.$1.ifname); if [[ "${dev:0:3}" ==
 is_tunnel() { if is_vpn "$1" || is_wg "$1"; then return 0; else return 1; fi; }
 is_wan() { if [[ -n "$wanIface4" && "$1" == "$wanIface4" ]]; then return 0; else return 1; fi; }
 is_wan6() { if [[ -n "$wanIface6" && "$1" == "$wanIface6" ]]; then return 0; else return 1; fi; }
-is_supported_interface() { if is_wan "$1" || is_wan6 "$1" || is_vpn "$1" || is_wg "$1"; then return 0; else return 1; fi; }
+is_ignored_interface() { if [ "${ignoredIfaces/$1}" != "$ignoredIfaces" ]; then return 0; else return 1; fi; }
+is_supported_interface() { if ! is_ignored_interface "$1" && ( is_wan "$1" || is_wan6 "$1" || is_vpn "$1" || is_wg "$1" ); then return 0; else return 1; fi; }
 is_ipv4() { local ip="$1"; if expr "$ip" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then return 0; else return 1; fi; }
 is_ipv6() { if [ "${1//:}" != "$1" ]; then return 0; else return 1; fi; }
 is_netmask() { local ip="${1%/*}"; if [ "$ip" != "$1" ] && is_ipv4 $ip; then return 0; else return 1; fi; }
@@ -173,7 +175,8 @@ r_process_policy(){
 		#	do not use ipsets, use iptables for local netmasks so that they're lower priority than ipsets
 			insert_policy "$comment" "$iface" "$laddr" "$lport" "$raddr" "$rport"
 		elif [[ -n "$laddr" && -z "$lport" && -z "$raddr" && -z "$rport" ]]; then
-			for i in $(resolveip $laddr); do ips "add" "${iface}local" "$laddr" "${comment}: $laddr" || ipsFailFlag=1; done
+#			for i in $(resolveip $laddr); do ips "add" "${iface}local" "$i" "${comment}: $laddr" || ipsFailFlag=1; done
+			for i in $(resolveip $laddr); do insert_policy "$laddr" "$iface" "$i" "$lport" "$raddr" "$rport"; done
 		elif [[ -z "$laddr" && -z "$lport" && -n "$raddr" && -z "$rport" ]]; then
 			if is_ipv6 "$raddr"; then
 				ips "add" "${iface}route" "$raddr" "${comment}: $raddr" || ipsFailFlag=1;
@@ -248,7 +251,7 @@ table_destroy(){
 		ip -6 rule del table "$tid" >/dev/null 2>&1
 		ip -4 route flush table "$tid";
 		ip -6 route flush table "$tid";
-		ips "flush" "${iface}local"; ips "destroy" "${iface}local";
+#		ips "flush" "${iface}local"; ips "destroy" "${iface}local";
 		ips "flush" "${iface}route"; ips "destroy" "${iface}route";
 		ip -4 route flush cache
 		ip -6 route flush cache
@@ -269,10 +272,10 @@ table_create(){
 		fi
 
 		if [ $ipsetEnabled -ne 0 ]; then
-			ips "create" ${iface}local "hash:net family inet comment" && ips "flush" ${iface}local || s=1
+#			ips "create" ${iface}local "hash:net family inet comment" && ips "flush" ${iface}local || s=1
 			ips "create" ${iface}route "hash:net family inet comment" && ips "flush" ${iface}route || s=1
-			ipt -t mangle -A VPR_CHAIN -m set --match-set ${iface}local src -j MARK --set-xmark ${mark}/${fwMask} || s=1
-			[ $ipv6Enabled -ne 0 ] && { ipt -t mangle -A VPR_CHAIN -m set --match-set ${iface}local6 src -j MARK --set-xmark ${mark}/${fwMask} || s=1; }
+#			ipt -t mangle -A VPR_CHAIN -m set --match-set ${iface}local src -j MARK --set-xmark ${mark}/${fwMask} || s=1
+#			[ $ipv6Enabled -ne 0 ] && { ipt -t mangle -A VPR_CHAIN -m set --match-set ${iface}local6 src -j MARK --set-xmark ${mark}/${fwMask} || s=1; }
 			ipt -t mangle -A VPR_CHAIN -m set --match-set ${iface}route dst -j MARK --set-xmark ${mark}/${fwMask} || s=1
 			[ $ipv6Enabled -ne 0 ] && { ipt -t mangle -A VPR_CHAIN -m set --match-set ${iface}route6 dst -j MARK --set-xmark ${mark}/${fwMask} || s=1; }
 		fi
@@ -531,11 +534,12 @@ support() {
 validate_config() {
 	uci_validate_section "${packageName}" config "${1}" \
 		'enabled:integer' \
-		'strict_enforcement:integer' \
 		'verbosity:integer' \
-		'dnsmasq_enabled:integer' \
-		'ipset_enabled:integer' \
 		'ipv6_enabled:integer' \
+		'dnsmasq_enabled:integer' \
+		'strict_enforcement:integer' \
+		'ignored_interface:string' \
+		'ipset_enabled:integer' \
 		'wan_tid:integer' \
 		'wan_fw_mark:string' \
 		'fw_mask:string'
