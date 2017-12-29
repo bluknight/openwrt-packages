@@ -5,7 +5,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=vpn-policy-routing
 PKG_VERSION:=0.0.1
-PKG_RELEASE:=5
+PKG_RELEASE:=7b02
 PKG_LICENSE:=GPL-3.0+
 PKG_MAINTAINER:=Stan Grishin <stangri@melmac.net>
 
@@ -21,7 +21,7 @@ define Package/$(PKG_NAME)
 endef
 
 define Package/$(PKG_NAME)/description
-This service allows policy-based routing for OpenVPN/Wireguard tunnels and WAN interface.
+This service allows policy-based routing for Openconnect, OpenVPN and Wireguard tunnels and WAN interface.
 Policies can specify domains, local IPs/subnets and ports, as well as remote IPs/subnets and ports.
 endef
 
@@ -54,6 +54,7 @@ define Package/$(PKG_NAME)/postinst
 	#!/bin/sh
 	# check if we are on real system
 	if [ -z "$${IPKG_INSTROOT}" ]; then
+		# migrate settings from openvpn-policy-routing package
 		if [[ -s "/etc/config/openvpn-policy-routing" ]]; then
 			mv /etc/config/openvpn-policy-routing /etc/config/vpn-policy-routing
 			sed -i 's/openvpn-policy-routing/vpn-policy-routing/' /etc/config/vpn-policy-routing

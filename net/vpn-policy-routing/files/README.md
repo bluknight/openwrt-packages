@@ -1,12 +1,13 @@
 # VPN Policy-Based Routing
 
 ## Description
-This service allows you to define rules (policies) for routing traffic via WAN or your OpenVPN/Wireguard tunnel(s). Policies can be set based on any combination of local/remote ports, local/remote IPv4 or IPv6 addresses/subnets or domains. This service supersedes the [VPN Bypass](https://github.com/openwrt/packages/blob/master/net/vpnbypass/files/README.md) service, by supporting IPv6 and by allowing you to set explicit rules not just for WAN gateway (bypassing OpenVPN tunnel), but for multiple OpenVPN tunnels and Wireguard interfaces as well.
+This service allows you to define rules (policies) for routing traffic via WAN or your Openconnect, OpenVPN or Wireguard tunnels. Policies can be set based on any combination of local/remote ports, local/remote IPv4 or IPv6 addresses/subnets or domains. This service supersedes the [VPN Bypass](https://github.com/openwrt/packages/blob/master/net/vpnbypass/files/README.md) service, by supporting IPv6 and by allowing you to set explicit rules not just for WAN gateway (bypassing OpenVPN tunnel), but for Openconnect, OpenVPN and Wireguard tunnels as well.
 
 ## Features
 
 #### Gateways/Tunnels
 - Any policy can target either WAN, an OpenVPN tunnel or a Wireguard interface.
+- Multiple Openconnect interfaces supported (with protocol names openconnect\*).
 - Multiple OpenVPN tunnels supported (with device names tun\* or tap\*).
 - Multiple Wireguard interfaces supported (with protocol names wireguard\*).
 
@@ -66,15 +67,15 @@ If these packages are not found in the official feed/repo for your version of Op
 #### Add custom repo to your router
 If your router is not set up with the access to repository containing these packages you will need to add custom repository to your router by connecting to your router via ssh and running the following commands:
 
-###### OpenWrt CC 15.05.1
+###### OpenWrt 15.05.1
 ```sh
-opkg update; opkg install wget libopenssl
+opkg update; opkg install ca-certificates wget libopenssl
 echo -e -n 'untrusted comment: public key 7ffc7517c4cc0c56\nRWR//HUXxMwMVnx7fESOKO7x8XoW4/dRidJPjt91hAAU2L59mYvHy0Fa\n' > /tmp/stangri-repo.pub && opkg-key add /tmp/stangri-repo.pub
 ! grep -q 'stangri_repo' /etc/opkg/customfeeds.conf && echo 'src/gz stangri_repo https://raw.githubusercontent.com/stangri/openwrt-repo/master' >> /etc/opkg/customfeeds.conf
 opkg update
 ```
 
-###### LEDE Project and OpenWrt DD trunk
+###### LEDE Project and OpenWrt 18.xx or later
 ```sh
 opkg update; opkg install uclient-fetch libustream-mbedtls
 echo -e -n 'untrusted comment: public key 7ffc7517c4cc0c56\nRWR//HUXxMwMVnx7fESOKO7x8XoW4/dRidJPjt91hAAU2L59mYvHy0Fa\n' > /tmp/stangri-repo.pub && opkg-key add /tmp/stangri-repo.pub
@@ -112,4 +113,4 @@ option route_allowed_ips '0'
 ```
 
 ## Thanks
-I'd like to thank everyone who helped create, test and troubleshoot this service. Without contributions from [@hnyman](https://github.com/hnyman), [@dibdot](https://github.com/dibdot), [@danrl](https://github.com/danrl), [@tohojo](https://github.com/tohojo), [@cybrnook](https://github.com/cybrnook), [@nidstigator](https://github.com/nidstigator), [@AndreBL](https://github.com/AndreBL) and rigorous testing by [@dziny](https://github.com/dziny), [@bluenote73](https://github.com/bluenote73) and [@buckaroo](https://github.com/pgera) it wouldn't have been possible.
+I'd like to thank everyone who helped create, test and troubleshoot this service. Without contributions from [@hnyman](https://github.com/hnyman), [@dibdot](https://github.com/dibdot), [@danrl](https://github.com/danrl), [@tohojo](https://github.com/tohojo), [@cybrnook](https://github.com/cybrnook), [@nidstigator](https://github.com/nidstigator), [@AndreBL](https://github.com/AndreBL) and [@dz0ny](https://github.com/dz0ny) and rigorous testing by [@dziny](https://github.com/dziny), [@bluenote73](https://github.com/bluenote73) and   [@buckaroo](https://github.com/pgera) it wouldn't have been possible.

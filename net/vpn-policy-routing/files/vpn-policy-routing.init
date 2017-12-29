@@ -47,11 +47,11 @@ is_enabled() {
 		config_get_bool ipv6Enabled    'config' 'ipv6_enabled' 1
 		config_get_bool ipsetEnabled   'config' 'ipset_enabled' 1
 		config_get_bool dnsmasqEnabled 'config' 'dnsmasq_enabled' 0
-		config_get verbosity    'config' 'verbosity' '2'
-		config_get wanTableID   'config' 'wan_tid' '201'
-		config_get wanMark      'config' 'wan_mark' '0x010000'
-		config_get fwMask       'config' 'fw_mask' '0xff0000'
-		config_get icmpIface    'config' 'icmp_interface'
+		config_get verbosity           'config' 'verbosity' '2'
+		config_get wanTableID          'config' 'wan_tid' '201'
+		config_get wanMark             'config' 'wan_mark' '0x010000'
+		config_get fwMask              'config' 'fw_mask' '0xff0000'
+		config_get icmpIface           'config' 'icmp_interface'
 		config_get ignoredIfaces       'config' 'ignored_interface'
 
 		[ $serviceEnabled -gt 0 ] || { output "$_ERROR_: $serviceName is not enabled!\n"; return 1; }
@@ -63,7 +63,7 @@ is_enabled() {
 				ipsetEnabled=1
 			fi
 		fi
-		source /lib/functions/network.sh; config_load network; config_foreach _build_ifaces_lists 'interface';
+		source /lib/functions/network.sh; config_load 'network'; config_foreach _build_ifaces_lists 'interface';
 
 		while : ; do
 			vpr_find_iface 'wan' wanIface4; vpr_find_iface 'wan6' wanIface6;
@@ -81,14 +81,15 @@ is_enabled() {
 		fi
 }
 
+is_oc() { local proto; proto=$(uci -q get network.$1.proto); if [ "${proto:0:11}" == "openconnect" ]; then return 0; else return 1; fi; }
+is_ovpn() { local dev; dev=$(uci -q get network.$1.ifname); if [[ "${dev:0:3}" == "tun" || "${dev:0:3}" == "tap" ]]; then return 0; else return 1; fi; }
 is_wg() { local proto; proto=$(uci -q get network.$1.proto); if [ "${proto:0:9}" == "wireguard" ]; then return 0; else return 1; fi; }
-is_vpn() { local dev; dev=$(uci -q get network.$1.ifname); if [[ "${dev:0:3}" == "tun" || "${dev:0:3}" == "tap" ]]; then return 0; else return 1; fi; }
-is_tunnel() { if is_vpn "$1" || is_wg "$1"; then return 0; else return 1; fi; }
+is_tunnel() { if is_ovpn "$1" || is_wg "$1" || is_oc "$1"; then return 0; else return 1; fi; }
 is_wan() { if [[ -n "$wanIface4" && "$1" == "$wanIface4" ]]; then return 0; else return 1; fi; }
 is_wan6() { if [[ -n "$wanIface6" && "$1" == "$wanIface6" ]]; then return 0; else return 1; fi; }
 is_ignored_interface() { if [ "${ignoredIfaces/$1}" != "$ignoredIfaces" ]; then return 0; else return 1; fi; }
-is_supported_interface() { if ! is_ignored_interface "$1" && ( is_wan "$1" || is_wan6 "$1" || is_vpn "$1" || is_wg "$1" ); then return 0; else return 1; fi; }
-is_ipv4() { local ip="$1"; if expr "$ip" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then return 0; else return 1; fi; }
+is_supported_interface() { if ! is_ignored_interface "$1" && ( is_wan "$1" || is_wan6 "$1" || is_ovpn "$1" || is_wg "$1" || is_oc "$1" ); then return 0; else return 1; fi; }
+is_ipv4() { if expr "$1" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then return 0; else return 1; fi; }
 is_ipv6() { if [ "${1//:}" != "$1" ]; then return 0; else return 1; fi; }
 is_netmask() { local ip="${1%/*}"; if [ "$ip" != "$1" ] && is_ipv4 $ip; then return 0; else return 1; fi; }
 is_domain() { if [ "${1//[a-zA-Z-]}" != "$1" ]; then return 0; else return 1; fi; }
@@ -113,51 +114,47 @@ ipt() {
 
 ips() {
 	local command="$1" ipset="${2//-/_}" param="$3" comment="$4" failFlagIpv4=0 failFlagIpv6=0
-	case "$command" in # process settings and return if nothing to do
-		add_dnsmasq) [ $dnsmasqEnabled -eq 0 ] && return 1;;
-		add)	[ $ipsetEnabled -eq 0 ] && return 1;;
-		create|destroy|flush)	[ $ipsetEnabled -eq 0 ] && return 0;;
-	esac
-
-	case "$command" in # actually perform commands
+	case "$command" in
 		add_dnsmasq)
+			[ $dnsmasqEnabled -eq 0 ] && return 1
 			[ $ipv6Enabled -ne 0 ] && ipset="${ipset},${ipset}6"
 			echo "ipset=/${param}/${ipset} # $comment" >> "$dnsmasqFile" || failFlagIpv4=1
+			[[ $failFlagIpv4 -eq 0 && $failFlagIpv6 -eq 0 ]] && return 0 || return 1
 			;;
 		add)
+			[ $ipsetEnabled -eq 0 ] && return 1
 			ipset -q -! $command $ipset $param comment "$comment" || failFlagIpv4=1
 			[ $ipv6Enabled -ne 0 ] && ipset -q -! $command ${ipset}6 ${param/"family inet"/"family inet6"} comment "$comment" || failFlagIpv6=1
+			[[ $failFlagIpv4 -eq 0 || $failFlagIpv6 -eq 0 ]] && return 0 || return 1
 			;;
 		create)
+			[ $ipsetEnabled -eq 0 ] && return 0
 			ipset -q -! $command $ipset $param || failFlagIpv4=1
 			if [ $ipv6Enabled -ne 0 ]; then ipset -q -! $command ${ipset}6 ${param/"family inet"/"family inet6"} || failFlagIpv6=1; fi
+			[[ $failFlagIpv4 -eq 0 && $failFlagIpv6 -eq 0 ]] && return 0 || return 1
 			;;
 		destroy|flush)
+			[ $ipsetEnabled -eq 0 ] && return 0
 			ipset -q -! $command $ipset || failFlagIpv4=1
 			if [ $ipv6Enabled -ne 0 ]; then ipset -q -! $command ${ipset}6 || failFlagIpv6=1; fi
+			[[ $failFlagIpv4 -eq 0 && $failFlagIpv6 -eq 0 ]] && return 0 || return 1
 			;;
-	esac
-
-	case "$command" in # return code based on command result
-		add_dnsmasq) [[ $failFlagIpv4 -eq 0 && $failFlagIpv6 -eq 0 ]] && return 0 || return 1;;
-		add)	[[ $failFlagIpv4 -eq 0 || $failFlagIpv6 -eq 0 ]] && return 0 || return 1;;
-		create|destroy|flush) [[ $failFlagIpv4 -eq 0 && $failFlagIpv6 -eq 0 ]] && return 0 || return 1;;
 	esac
 }
 
 insert_policy() {
-	local comment="$1" iface="$2" laddr="$3" lport="$4" raddr="$5" rport="$6" mark
-	mark=$(eval echo "\$mark_$iface")
-
+	local comment="$1" iface="$2" laddr="$3" lport="$4" raddr="$5" rport="$6" proto="${7:-tcp}"
+	local mark=$(eval echo "\$mark_$iface")
 	[ -z "$mark" ] && processPolicyStatus="${processPolicyStatus}${_ERROR_}: unknown fw_mark for ${iface}!\n"
 #	param="-t mangle -I VPR_CHAIN 1 -j MARK --set-xmark ${mark}/${fwMask}"
 	param="-t mangle -A VPR_CHAIN -j MARK --set-xmark ${mark}/${fwMask}"
 	[ -n "$laddr" ] && param="$param -s $laddr"
 	[ -n "$lport" ] && param="$param -p tcp -m multiport --sport ${lport//-/:}"
 	[ -n "$raddr" ] && param="$param -d $raddr"
-	[ -n "$rport" ] && param="$param -p tcp -m multiport --dport ${rport//-/:}"
+	[ -n "$rport" ] && param="$param -p $proto -m multiport --dport ${rport//-/:}"
 	[ -n "$comment" ] && param="$param -m comment --comment $(echo $comment | tr '[ ~`!@#$%^&*()\+/,<>?//;:]' '_')"
 	ipt "$param" || processPolicyStatus="${processPolicyStatus}${_ERROR_}: ipt $param\n"
+	[[ -n "$rport" && "$proto" == "tcp" ]] && insert_policy "$1" "$2" "$3" "$4" "$5" "$6" 'udp'
 }
 
 r_process_policy(){
@@ -175,8 +172,7 @@ r_process_policy(){
 		#	do not use ipsets, use iptables for local netmasks so that they're lower priority than ipsets
 			insert_policy "$comment" "$iface" "$laddr" "$lport" "$raddr" "$rport"
 		elif [[ -n "$laddr" && -z "$lport" && -z "$raddr" && -z "$rport" ]]; then
-#			for i in $(resolveip $laddr); do ips "add" "${iface}local" "$i" "${comment}: $laddr" || ipsFailFlag=1; done
-			for i in $(resolveip $laddr); do insert_policy "$laddr" "$iface" "$i" "$lport" "$raddr" "$rport"; done
+			for i in $(resolveip $laddr); do insert_policy "$comment" "$iface" "$i" "$lport" "$raddr" "$rport"; done
 		elif [[ -z "$laddr" && -z "$lport" && -n "$raddr" && -z "$rport" ]]; then
 			if is_ipv6 "$raddr"; then
 				ips "add" "${iface}route" "$raddr" "${comment}: $raddr" || ipsFailFlag=1;
@@ -212,12 +208,12 @@ r_process_policy(){
 
 process_policy(){
 	local comment iface laddr lport raddr rport param mark processPolicyStatus
-	config_get comment "$1" comment
-	config_get iface   "$1" interface
-	config_get laddr   "$1" local_addresses
-	config_get lport   "$1" local_ports
-	config_get raddr   "$1" remote_addresses
-	config_get rport   "$1" remote_ports
+	config_get comment "$1" 'comment'
+	config_get iface   "$1" 'interface'
+	config_get laddr   "$1" 'local_addresses'
+	config_get lport   "$1" 'local_ports'
+	config_get raddr   "$1" 'remote_addresses'
+	config_get rport   "$1" 'remote_ports'
 
 	output 2 "Routing '$comment' via $iface "
 
@@ -251,7 +247,6 @@ table_destroy(){
 		ip -6 rule del table "$tid" >/dev/null 2>&1
 		ip -4 route flush table "$tid";
 		ip -6 route flush table "$tid";
-#		ips "flush" "${iface}local"; ips "destroy" "${iface}local";
 		ips "flush" "${iface}route"; ips "destroy" "${iface}route";
 		ip -4 route flush cache
 		ip -6 route flush cache
@@ -272,10 +267,7 @@ table_create(){
 		fi
 
 		if [ $ipsetEnabled -ne 0 ]; then
-#			ips "create" ${iface}local "hash:net family inet comment" && ips "flush" ${iface}local || s=1
 			ips "create" ${iface}route "hash:net family inet comment" && ips "flush" ${iface}route || s=1
-#			ipt -t mangle -A VPR_CHAIN -m set --match-set ${iface}local src -j MARK --set-xmark ${mark}/${fwMask} || s=1
-#			[ $ipv6Enabled -ne 0 ] && { ipt -t mangle -A VPR_CHAIN -m set --match-set ${iface}local6 src -j MARK --set-xmark ${mark}/${fwMask} || s=1; }
 			ipt -t mangle -A VPR_CHAIN -m set --match-set ${iface}route dst -j MARK --set-xmark ${mark}/${fwMask} || s=1
 			[ $ipv6Enabled -ne 0 ] && { ipt -t mangle -A VPR_CHAIN -m set --match-set ${iface}route6 dst -j MARK --set-xmark ${mark}/${fwMask} || s=1; }
 		fi
@@ -289,12 +281,6 @@ table_create(){
 		[[ -n "$gw4" ]] && ip -4 route add default via "$gw4" table "$tid" >/dev/null 2>&1 || s=1
 		ip -4 route flush cache || s=1
 		ip -4 rule add fwmark "$mark" table "$tid" || s=1
-#		if ! is_wan "$iface"; then
-#			route add default netmask 128.0.0.0 gw $gw4 >/dev/null 2>&1
-#			route add -net 128.0.0.0 netmask 128.0.0.0 gw $gw4 >/dev/null 2>&1
-#			route add ${gw4%.*}.1 netmask gw $gw4 >/dev/null 2>&1
-#			route add $gw4 netmask 255.255.255.255 gw * >/dev/null 2>&1
-#		fi
 		if [ $ipv6Enabled -ne 0 ]; then
 			[[ -n "$gw6" ]] && ip -6 route show | grep " dev $dev6 " | while read -r i; do ip -r route add $i table "$tid" >/dev/null 2>&1 || s=1; done
 			ip -6 route flush cache || s=1
@@ -307,7 +293,7 @@ table_create(){
 
 process_interface(){
 	local gw4 gw6 dev dev6 s=0 dscp iface="$1" action="$2" displayText
-	config_get dev "$iface" ifname; dev6="$dev";
+	config_get dev "$iface" 'ifname'; dev6="$dev";
 
 	is_supported_interface "$iface" || return 0
 	[ $((ifaceMark)) -gt $((fwMask)) ] && return 1
@@ -327,7 +313,7 @@ process_interface(){
 			if is_wan "$iface" || is_wan6 "$iface"; then
 					network_get_gateway gw4 "$iface";
 					if [ -n "$wanIface6" ]; then
-						config_get dev6 "$wanIface6" ifname;
+						config_get dev6 "$wanIface6" 'ifname';
 						gw6=$(ip -6 route show | grep -m1 " dev $dev6 " | awk '{print $1}');
 						[ "$gw6" == "default" ] && gw6=$(ip -6 route show | grep -m1 " dev $dev6 " | awk '{print $3}');
 					fi
@@ -336,7 +322,7 @@ process_interface(){
 					else
 						return
 					fi
-			elif is_vpn "$iface" || is_wg "$iface"; then
+			elif is_tunnel "$iface"; then
 				gw4="$(route -A inet | grep '^default' | grep $dev | awk '{print $2}')"
 				gw6="$(route -A inet6 | grep '^default' | grep $dev | awk '{print $2}')"
 				# fallback when OpenVPN routing is not pulled from the server
@@ -383,7 +369,7 @@ start_service() {
 		[ -n "$icmpIface" ] && ipt -t mangle -A OUTPUT -m mark --mark 0x00/${fwMask} -g VPR_CHAIN
 
 		output 1 'Processing interfaces '
-		config_load network; config_foreach process_interface 'interface' 'create';
+		config_load 'network'; config_foreach process_interface 'interface' 'create';
 		output 1 '\n'
 		output 1 'Routing policies '
 		config_load $packageName; config_foreach process_policy 'policy';
@@ -409,7 +395,7 @@ start_service() {
 stop_service() {
 	if create_lock; then
 		is_enabled || return 1
-		config_load network; config_foreach process_interface 'interface' 'destroy'
+		config_load 'network'; config_foreach process_interface 'interface' 'destroy'
 		ipt -t mangle -D PREROUTING -m mark --mark 0x00/${fwMask} -g VPR_CHAIN
 		ipt -t mangle -D OUTPUT -m mark --mark 0x00/${fwMask} -g VPR_CHAIN
 		ipt -t mangle -F VPR_CHAIN; ipt -t mangle -X VPR_CHAIN;
