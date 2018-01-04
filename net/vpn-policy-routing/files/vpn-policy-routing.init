@@ -166,12 +166,14 @@ insert_policy() {
 	[ -n "$raddr" ] && param="$param -d $raddr"
 	[ -n "$rport" ] && param="$param -p $proto -m multiport --dport ${rport//-/:}"
 	[ -n "$comment" ] && param="$param -m comment --comment $(echo $comment | tr '[\. ~`!@#$%^&*()\+/,<>?//;:]' '_')"
-	[ -n "$comment" ] && param="$param -m comment --comment '$comment'"
 	ipt "$param" || processPolicyStatus="${processPolicyStatus}${_ERROR_}: ipt $param\n"
-	if [[ $outputChainEnabled -eq 1 && "$chain" == "PREROUTING" && "$proto" == "tcp" && -z "$laddr" && ( -n "$lport" || -n "$rport") ]]; then
+	if [[ $outputChainEnabled -ne 0 && "$chain" == "PREROUTING" && "$proto" == "tcp" && -z "$laddr" ]] && [[ -n "$lport" || -n "$rport" ]]; then
 		insert_policy "$1" "$2" "$3" "$4" "$5" "$6" "$proto" 'OUTPUT'
 	fi
-	[[ $udpProtoEnabled -eq 1 && -n "$rport" && "$proto" == "tcp" ]] && insert_policy "$1" "$2" "$3" "$4" "$5" "$6" 'udp' "$chain"
+	if [[ $udpProtoEnabled -ne 0 && -n "$rport" && "$proto" == "tcp" ]]; then
+		insert_policy "$1" "$2" "$3" "$4" "$5" "$6" 'udp' "$chain"
+	fi
+	return 0
 }
 
 r_process_policy(){
@@ -190,9 +192,6 @@ r_process_policy(){
 			insert_policy "$comment" "$iface" "$laddr" "$lport" "$raddr" "$rport"
 		elif [[ -n "$laddr" && -z "$lport" && -z "$raddr" && -z "$rport" ]]; then
 			for i in $(resolveip $laddr); do insert_policy "$comment" "$iface" "$i" "$lport" "$raddr" "$rport"; done
-#		elif [[ -z "$laddr" && -z "$lport" && -z "$raddr" && -n "$rport" ]]; then
-#			insert_policy "$comment" "$iface" "$laddr" "$lport" "$raddr" "$rport" 'tcp' 'PREROUTING'
-#			insert_policy "$comment" "$iface" "$laddr" "$lport" "$raddr" "$rport" 'tcp' 'OUTPUT'
 		elif [[ -z "$laddr" && -z "$lport" && -n "$raddr" && -z "$rport" ]]; then
 			if is_ipv6 "$raddr"; then
 				ips "add" "${iface}" "$raddr" "${comment}: $raddr" || ipsFailFlag=1;
@@ -291,15 +290,15 @@ table_create(){
 			ips 'create' ${iface} 'hash:net family inet comment' && ips 'flush' ${iface} || s=1
 			ipt -t mangle -A VPR_PREROUTING -m set --match-set ${iface} dst -j MARK --set-xmark ${mark}/${fwMask} || s=1
 			[ $ipv6Enabled -ne 0 ] && { ipt -t mangle -A VPR_PREROUTING -m set --match-set ${iface}6 dst -j MARK --set-xmark ${mark}/${fwMask} || s=1; }
-			if [ $forwardChainEnabled -eq 1 ]; then
+			if [ $forwardChainEnabled -ne 0 ]; then
 				ipt -t mangle -A VPR_FORWARD -m set --match-set ${iface} dst -j MARK --set-xmark ${mark}/${fwMask} || s=1
 				[ $ipv6Enabled -ne 0 ] && { ipt -t mangle -A VPR_FORWARD -m set --match-set ${iface}6 dst -j MARK --set-xmark ${mark}/${fwMask} || s=1; }
 			fi
-			if [ $inputChainEnabled -eq 1 ]; then
+			if [ $inputChainEnabled -ne 0 ]; then
 				ipt -t mangle -A VPR_INPUT -m set --match-set ${iface} dst -j MARK --set-xmark ${mark}/${fwMask} || s=1
 				[ $ipv6Enabled -ne 0 ] && { ipt -t mangle -A VPR_INPUT -m set --match-set ${iface}6 dst -j MARK --set-xmark ${mark}/${fwMask} || s=1; }
 			fi
-			if [ $outputChainEnabled -eq 1 ]; then
+			if [ $outputChainEnabled -ne 0 ]; then
 				ipt -t mangle -A VPR_OUTPUT -m set --match-set ${iface} dst -j MARK --set-xmark ${mark}/${fwMask} || s=1
 				[ $ipv6Enabled -ne 0 ] && { ipt -t mangle -A VPR_OUTPUT -m set --match-set ${iface}6 dst -j MARK --set-xmark ${mark}/${fwMask} || s=1; }
 			fi
@@ -308,7 +307,7 @@ table_create(){
 		if [ ${dscp:-0} -ge 1 ] && [ ${dscp:-0} -le 63 ]; then
 			ipt -t mangle -A VPR_PREROUTING -m dscp --dscp ${dscp} -j MARK --set-xmark ${mark}/${fwMask} || s=1
 		fi
-		if [[ "$iface" == "$icmpIface" && outputChainEnabled -eq 1 ]]; then
+		if [[ "$iface" == "$icmpIface" && $outputChainEnabled -ne 0 ]]; then
 			ipt -t mangle -A VPR_OUTPUT -p icmp -j MARK --set-xmark ${mark}/${fwMask} || s=1
 		fi
 		[[ -n "$gw4" ]] && ip -4 route add default via "$gw4" table "$tid" >/dev/null 2>&1 || s=1
@@ -399,13 +398,13 @@ start_service() {
 		{ modprobe xt_set; modprobe ip_set; modprobe ip_set_hash_ip; } >/dev/null 2>&1;
 
 		ipt -t mangle -N VPR_PREROUTING; ipt -t mangle -A PREROUTING -m mark --mark 0x00/${fwMask} -g VPR_PREROUTING;
-		if [ $forwardChainEnabled -eq 1 ]; then
+		if [ $forwardChainEnabled -ne 0 ]; then
 			ipt -t mangle -N VPR_FORWARD; ipt -t mangle -A FORWARD -m mark --mark 0x00/${fwMask} -g VPR_FORWARD;
 		fi
-		if [ $inputChainEnabled -eq 1 ]; then
+		if [ $inputChainEnabled -ne 0 ]; then
 			ipt -t mangle -N VPR_INPUT; ipt -t mangle -A INPUT -m mark --mark 0x00/${fwMask} -g VPR_INPUT;
 		fi
-		if [ $outputChainEnabled -eq 1 ]; then
+		if [ $outputChainEnabled -ne 0 ]; then
 			ipt -t mangle -N VPR_OUTPUT; ipt -t mangle -A OUTPUT -m mark --mark 0x00/${fwMask} -g VPR_OUTPUT;
 		fi
 
@@ -529,30 +528,30 @@ support() {
 			[ -z "$set_d" ] && echo "IP6 Tables PREROUTING" || echo "IP6 Tables"
 			[ -z "$set_d" ] && ip6tables -v -t mangle -S VPR_PREROUTING || ip6tables -L -t mangle
 		}
-		echo "============================================================"
-			[ -z "$set_d" ] && echo "IP Tables INPUT"
-			[ -z "$set_d" ] && iptables -v -t mangle -S VPR_INPUT
+		[[ $forwardChainEnabled -ne 0 && -z "$set_d" ]] && { echo "============================================================"
+			echo "IP Tables FORWARD"
+			iptables -v -t mangle -S VPR_FORWARD
 		[ $ipv6Enabled -ne 0 ] && {
 		echo "============================================================"
-			[ -z "$set_d" ] && echo "IPv6 Tables INPUT"
-			[ -z "$set_d" ] && ip6tables -v -t mangle -S VPR_INPUT
-		}
-		echo "============================================================"
-			[ -z "$set_d" ] && echo "IP Tables OUTPUT"
-			[ -z "$set_d" ] && iptables -v -t mangle -S VPR_OUTPUT
+			echo "IPv6 Tables FORWARD"
+			ip6tables -v -t mangle -S VPR_FORWARD
+		};}
+		[[ $inputChainEnabled -ne 0 && -z "$set_d" ]] && { echo "============================================================"
+			echo "IP Tables INPUT"
+			iptables -v -t mangle -S VPR_INPUT
 		[ $ipv6Enabled -ne 0 ] && {
 		echo "============================================================"
-			[ -z "$set_d" ] && echo "IPv6 Tables OUTPUT"
-			[ -z "$set_d" ] && ip6tables -v -t mangle -S VPR_OUTPUT
-		}
-		echo "============================================================"
-			[ -z "$set_d" ] && echo "IP Tables FORWARD"
-			[ -z "$set_d" ] && iptables -v -t mangle -S VPR_FORWARD
+			echo "IPv6 Tables INPUT"
+			ip6tables -v -t mangle -S VPR_INPUT
+		};}
+		[[ $outputChainEnabled -ne 0 && -z "$set_d" ]] && { echo "============================================================"
+			echo "IP Tables OUTPUT"
+			iptables -v -t mangle -S VPR_OUTPUT
 		[ $ipv6Enabled -ne 0 ] && {
 		echo "============================================================"
-			[ -z "$set_d" ] && echo "IPv6 Tables FORWARD"
-			[ -z "$set_d" ] && ip6tables -v -t mangle -S VPR_FORWARD
-		}
+			echo "IPv6 Tables OUTPUT"
+			ip6tables -v -t mangle -S VPR_OUTPUT
+		};}
 		echo "============================================================"
 			echo "Current ipsets"
 			ipset save

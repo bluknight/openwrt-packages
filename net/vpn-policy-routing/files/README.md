@@ -94,9 +94,9 @@ Some of the ```vpn-policy-routing``` settings are intentionally not exposed thru
 |enabled|boolean|0|Enable/disable the ```vpn-policy-routing``` service.|
 |strict_enforcement|boolean|1|Enforce policies when their gateway is down.|
 |ipv6_enabled|boolean|1|Enable/disable IPv6 support.|
-|ipset_enabled|boolean|1|Enable use of ipsets. Make sure the [requirements](#requirements) are met.|
-|dnsmasq_enabled|boolean|1|Enable use of dnsmasq for ipsets. Assumes ```ipset_enabled=1``` Make sure the [requirements](#requirements) are met.|
-|udp_proto_enabled|boolean|0|Add UDP protocol iptables rules for protocol policies with unset local addresses and either local or remote port set. Unless this variable is set to 1, only TCP protocol iptables rules are added. |
+|ipset_enabled|boolean|1|Enable/disable use of ipsets. Make sure the [requirements](#requirements) are met.|
+|dnsmasq_enabled|boolean|1|Enable/disable use of dnsmasq for ipsets. Assumes ```ipset_enabled=1```. Make sure the [requirements](#requirements) are met.|
+|udp_proto_enabled|boolean|0|Add ```UDP``` protocol iptables rules for protocol policies with unset local addresses and either local or remote port set. By default (unless this variable is set to 1) only ```TCP``` protocol iptables rules are added.|
 |forward_chain_enabled|boolean|0|Create and use a ```FORWARD``` chain in the mangle table. By default the ```vpn-policy-routing``` only creates and uses the ```PREROUTING``` chain. Use with caution.|
 |input_chain_enabled|boolean|0|Create and use an ```INPUT``` chain in the mangle table. By default the ```vpn-policy-routing``` only creates and uses the ```PREROUTING``` chain. Use with caution.|
 |output_chain_enabled|boolean|0|Create and use an ```OUTPUT``` chain in the mangle table. By default the ```vpn-policy-routing``` only creates and uses the ```PREROUTING``` chain. Policies in the OUTPUT chain will affect traffic from the router itself. All policies with unset local address will be duplicated in the ```OUTPUT``` chain. Use with caution.|
@@ -122,17 +122,17 @@ WARNING: while paste.ee uploads are unlisted, they are still publicly available.
 - Initial release.
 
 ## Notes/Known Issues
-- While you can select down/inactive OpenVPN/Wireguard tunnel in Web UI, the appropriate tunnel must be up/active for the policies to properly work without errors on service start.
+- While you can select down/inactive VPN tunnel in Web UI, the appropriate tunnel must be up/active for the policies to properly work without errors on service start.
 
-- Service does not alter the default routing. Depending on your OpenVPN/Wireguard settings (and settings of the OpenVPN/Wireguard server you are connecting to), the default routing might be set to go via WAN or via OpenVPN/Wireguard tunnel. This service affects only routing of the traffic matching the policies. If you want to override default routing, consider adding the following to your OpenVPN tunnel(s) config:
+- Service does not alter the default routing. Depending on your VPN tunnel settings (and settings of the VPN server you are connecting to), the default routing might be set to go via WAN or via VPN tunnel. This service affects only routing of the traffic matching the policies. If you want to override default routing, consider adding the following to your OpenVPN tunnel config:
 ```
 option route_nopull '1'
 ```
 <!-- option route '0.0.0.0 0.0.0.0'  -->
-  and set the following for your Wireguard tunnel(s) config:
+  and set the following for your Wireguard tunnel config:
 ```
 option route_allowed_ips '0'
 ```
 
 ## Thanks
-I'd like to thank everyone who helped create, test and troubleshoot this service. Without contributions from [@hnyman](https://github.com/hnyman), [@dibdot](https://github.com/dibdot), [@danrl](https://github.com/danrl), [@tohojo](https://github.com/tohojo), [@cybrnook](https://github.com/cybrnook), [@nidstigator](https://github.com/nidstigator), [@AndreBL](https://github.com/AndreBL) and [@dz0ny](https://github.com/dz0ny) and rigorous testing by [@dziny](https://github.com/dziny), [@bluenote73](https://github.com/bluenote73) and   [@buckaroo](https://github.com/pgera) it wouldn't have been possible.
+I'd like to thank everyone who helped create, test and troubleshoot this service. Without contributions from [@hnyman](https://github.com/hnyman), [@dibdot](https://github.com/dibdot), [@danrl](https://github.com/danrl), [@tohojo](https://github.com/tohojo), [@cybrnook](https://github.com/cybrnook), [@nidstigator](https://github.com/nidstigator), [@AndreBL](https://github.com/AndreBL) and [@dz0ny](https://github.com/dz0ny) and rigorous testing by [@dziny](https://github.com/dziny), [@bluenote73](https://github.com/bluenote73) and [@buckaroo](https://github.com/pgera) it wouldn't have been possible. Wireguard support has been implemented thanks to [Mullvad](https://www.mullvad.net).
