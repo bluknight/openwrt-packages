@@ -1,25 +1,26 @@
 # VPN Policy-Based Routing
 
 ## Description
-This service allows you to define rules (policies) for routing traffic via WAN or your Openconnect, OpenVPN or Wireguard tunnels. Policies can be set based on any combination of local/remote ports, local/remote IPv4 or IPv6 addresses/subnets or domains. This service supersedes the [VPN Bypass](https://github.com/openwrt/packages/blob/master/net/vpnbypass/files/README.md) service, by supporting IPv6 and by allowing you to set explicit rules not just for WAN gateway (bypassing OpenVPN tunnel), but for Openconnect, OpenVPN and Wireguard tunnels as well.
+This service allows you to define rules (policies) for routing traffic via WAN or your Openconnect, OpenVPN, PPTP or Wireguard tunnels. Policies can be set based on any combination of local/remote ports, local/remote IPv4 or IPv6 addresses/subnets or domains. This service supersedes the [VPN Bypass](https://github.com/openwrt/packages/blob/master/net/vpnbypass/files/README.md) service, by supporting IPv6 and by allowing you to set explicit rules not just for WAN gateway (bypassing OpenVPN tunnel), but for Openconnect, OpenVPN, PPTP and Wireguard tunnels as well.
 
 ## Features
 
 #### Gateways/Tunnels
-- Any policy can target either WAN, an OpenVPN tunnel or a Wireguard interface.
-- Multiple Openconnect interfaces supported (with protocol names openconnect\*).
-- Multiple OpenVPN tunnels supported (with device names tun\* or tap\*).
-- Multiple Wireguard interfaces supported (with protocol names wireguard\*).
+- Any policy can target either WAN or a VPN tunnel interface.
+- Openconnect tunnels supported (with protocol names openconnect\*).
+- OpenVPN tunnels supported (with device names tun\* or tap\*).
+- PPTP tunnels supported (with protocol names pptp\*).
+- Wireguard tunnels supported (with protocol names wireguard\*).
 
 #### IPv4/IPv6/Port-Based Policies
 - Policies based on local names, IPs or subnets. You can specify a single IP (as in ```192.168.1.70```) or a local subnet (as in ```192.168.1.81/29```) or a local device name (as in ```nexusplayer```). IPv6 addresses are also supported.
-- Policies based on local ports numbers. Can be set as an individual port number (```32400```), comma-separated list (```80,8080```) or a range (```5060-5061```). Limited to 15 ports per policy.
+- Policies based on local ports numbers. Can be set as an individual port number (```32400```), a range (```5060-5061```), a space-separated list (```80 8080```) or a combination of the above (```80 8080 5060-5061```). Limited to 15 space-separated entries per policy.
 - Policies based on remote IPs/subnets or domain names. Same format/syntax as local IPs/subnets.
 - Policies based on remote ports numbers. Same format/syntax and restrictions as local ports.
-- You can mix and match IP addresses/subnets and device (or domain) names in one field separating them by space or semi-colon (like this: ```66.220.2.74 he.net tunnelbroker.net```).
+- You can mix the IP addresses/subnets and device (or domain) names in one field separating them by space (like this: ```66.220.2.74 he.net tunnelbroker.net```).
 
 #### DSCP-tag Based Policies
-You can also set policies for traffic with specific DSCP tag. Instructions for tagging specific app traffic in Windows 10 can be found [here](http://serverfault.com/questions/769843/cannot-set-dscp-on-windows-10-pro-via-group-policy).
+You can also set policies for traffic with specific DSCP tag. On Windows 10, for example, you can mark traffic from specific apps with DSCP tags (instructions for tagging specific app traffic in Windows 10 can be found [here](http://serverfault.com/questions/769843/cannot-set-dscp-on-windows-10-pro-via-group-policy)).
 
 #### Strict enforcement
 - Supports strict policy enforcement, even if the policy gateway is down -- resulting in network being unreachable for specific policy (enabled by default).
@@ -92,7 +93,7 @@ Some of the ```vpn-policy-routing``` settings are intentionally not exposed thru
 |Parameter|Type|Default|Comment|
 | --- | --- | --- | --- |
 |enabled|boolean|0|Enable/disable the ```vpn-policy-routing``` service.|
-|strict_enforcement|boolean|1|Enforce policies when their gateway is down.|
+|strict_enforcement|boolean|1|Enforce policies when their gateway is down. See [Strict enforcement](#strict-enforcement) for more details.|
 |ipv6_enabled|boolean|1|Enable/disable IPv6 support.|
 |ipset_enabled|boolean|1|Enable/disable use of ipsets for compatible policies. This speeds up service start-up and operation. Make sure the [requirements](#requirements) are met.|
 |dnsmasq_enabled|boolean|1|Enable/disable use of dnsmasq for ipsets. See [Use DNSMASQ](#use-dnsmasq) for more details. Assumes ```ipset_enabled=1```. Make sure the [requirements](#requirements) are met.|
