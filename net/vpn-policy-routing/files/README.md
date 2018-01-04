@@ -28,8 +28,8 @@ You can also set policies for traffic with specific DSCP tag. Instructions for t
 - Service can be set to utilize ```dnsmasq```'s ```ipset``` support. This requires the ```dnsmasq-full``` to be installed (see [How to install dnsmasq-full](#how-to-install-dnsmasq-full)) and it significantly improves the start up time because dnsmasq resolves the domain names and adds them to ipsets in the background. Another benefit if using ```dnsmasq```'s ```ipset``` is that it also automatically adds third-level domains to the ipset; if ```domain.com``` is added to the policy, this policy will affect all ```*.domain.com``` subdomains.
 
 #### Customization
-- Can be fully configured with uci commands or by editing ```/etc/config/vpn-policy-routing``` file.
-- Has a companion package (luci-app-vpn-policy-routing) so everything can be configured with Web UI.
+- Can be fully configured with ```uci``` commands or by editing ```/etc/config/vpn-policy-routing``` file.
+- Has a companion package (```luci-app-vpn-policy-routing```) so everything can be configured with Web UI.
 
 #### Other Features
 - Doesn't stay in memory, creates the ip tables and iptables rules which are automatically updated when supported/monitored interface changes.
@@ -95,7 +95,7 @@ Some of the ```vpn-policy-routing``` settings are intentionally not exposed thru
 |strict_enforcement|boolean|1|Enforce policies when their gateway is down.|
 |ipv6_enabled|boolean|1|Enable/disable IPv6 support.|
 |ipset_enabled|boolean|1|Enable/disable use of ipsets for compatible policies. This speeds up service start-up and operation. Make sure the [requirements](#requirements) are met.|
-|dnsmasq_enabled|boolean|1|Enable/disable use of dnsmasq for ipsets. This speeds up service start-up and operation. Also allows matching of third-level domain names (like ```www.domain.com```) when only the second-level domain name (like ```domain.com```) is specified in the policy. Assumes ```ipset_enabled=1```. Make sure the [requirements](#requirements) are met.|
+|dnsmasq_enabled|boolean|1|Enable/disable use of dnsmasq for ipsets. See [Use DNSMASQ](#use-dnsmasq) for more details. Assumes ```ipset_enabled=1```. Make sure the [requirements](#requirements) are met.|
 |udp_proto_enabled|boolean|0|Add ```UDP``` protocol iptables rules for protocol policies with unset local addresses and either local or remote port set. By default (unless this variable is set to 1) only ```TCP``` protocol iptables rules are added.|
 |forward_chain_enabled|boolean|0|Create and use a ```FORWARD``` chain in the mangle table. By default the ```vpn-policy-routing``` only creates and uses the ```PREROUTING``` chain. Use with caution.|
 |input_chain_enabled|boolean|0|Create and use an ```INPUT``` chain in the mangle table. By default the ```vpn-policy-routing``` only creates and uses the ```PREROUTING``` chain. Use with caution.|
@@ -104,15 +104,17 @@ Some of the ```vpn-policy-routing``` settings are intentionally not exposed thru
 |wan_tid|integer|201|Starting (WAN) Table ID number for tables created by the ```vpn-policy-routing``` service.|
 |wan_mark|hexadecimal|0x010000|Starting (WAN) fw mark for marks used by the ```vpn-policy-routing``` service. High starting mark is used to avoid conflict with SQM/QoS, this can be changed by user. Change with caution together with ```fw_mask```.|
 |fw_mask|hexadecimal|0xff0000|FW Mask used by the ```vpn-policy-routing``` service. High mask is used to avoid conflict with SQM/QoS, this can be changed by user. Change with caution together with ```wan_mark```.|
-|icmp_interface|string||Set the default ICMP protocol interface. Requires ```output_chain_enabled=1```. Use with caution.|
-|ignored_interface|string||Allows to specify the list of interface names to be ignored by the ```vpn-policy-routing``` service. Can be useful if running both VPN server and VPN client on the router.|
+|icmp_interface|string||Set the default ICMP protocol interface (interface name in lower case). Requires ```output_chain_enabled=1```. Use with caution.|
+|ignored_interface|string||Allows to specify the list of interface names (in lower case) to be ignored by the ```vpn-policy-routing``` service. Can be useful if running both VPN server and VPN client on the router.|
+|wan_dscp|integer||Allows use of [DSCP-tag based policies](#dscp-tag-based-policies) for WAN interface.|
+|{interface_name}_dscp|integer||Allows use of [DSCP-tag based policies](#dscp-tag-based-policies) for a VPN interface.|
 
 
 ## Discussion
 Please head to [LEDE Project Forum](https://forum.lede-project.org/t/openvpn-wireguard-policy-based-routing-web-ui/1422) for discussions of this service.
 
 #### Getting help
-If things are not working as intended, please include the output of ```/etc/init.d/vpn-policy-routing support``` with your post, as well as the output of ```/etc/init.d/vpn-policy-routing reload``` with verbosity setting set to maximum.
+If things are not working as intended, please include the content of ```/etc/config/vpn-policy-routing``` and the output of ```/etc/init.d/vpn-policy-routing support``` with your post, as well as the output of ```/etc/init.d/vpn-policy-routing reload``` with verbosity setting set to 2.
 If you don't want to post the ```/etc/init.d/vpn-policy-routing support``` output in a public forum, there's a way to have the support details automatically uploaded to my account at paste.ee by running ```/etc/init.d/vpn-policy-routing support -p```. You need to have the following packages installed to enable paste.ee upload functionality: ```curl libopenssl ca-bundle```.
 WARNING: while paste.ee uploads are unlisted, they are still publicly available.
 
@@ -123,7 +125,6 @@ WARNING: while paste.ee uploads are unlisted, they are still publicly available.
 
 ## Notes/Known Issues
 - While you can select down/inactive VPN tunnel in Web UI, the appropriate tunnel must be up/active for the policies to properly work without errors on service start.
-
 - Service does not alter the default routing. Depending on your VPN tunnel settings (and settings of the VPN server you are connecting to), the default routing might be set to go via WAN or via VPN tunnel. This service affects only routing of the traffic matching the policies. If you want to override default routing, consider adding the following to your OpenVPN tunnel config:
 ```
 option route_nopull '1'
