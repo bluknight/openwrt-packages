@@ -87,15 +87,15 @@ opkg update
 Default configuration has service disabled (use Web UI to enable/start service or run ```uci set vpn-policy-routing.config.enabled=1```) and has some example policies which can be safely deleted.
 
 #### Additional settings
-Some of the ```vpn-policy-routing``` settings are intentionally not exposed thru Web UI and require use of either ```uci``` commands or editing of ```/etc/config/vpn-policy-routing``` file on the router. The full list of configuration parameters of ```vpn-policy-routing.config``` section is below.
+Some of the ```vpn-policy-routing``` settings are intentionally not exposed thru Web UI and require use of either ```uci``` commands or editing of ```/etc/config/vpn-policy-routing``` file on the router. The full list of configuration parameters of ```vpn-policy-routing.config``` section is:
 
 |Parameter|Type|Default|Comment|
 | --- | --- | --- | --- |
 |enabled|boolean|0|Enable/disable the ```vpn-policy-routing``` service.|
 |strict_enforcement|boolean|1|Enforce policies when their gateway is down.|
 |ipv6_enabled|boolean|1|Enable/disable IPv6 support.|
-|ipset_enabled|boolean|1|Enable/disable use of ipsets. Make sure the [requirements](#requirements) are met.|
-|dnsmasq_enabled|boolean|1|Enable/disable use of dnsmasq for ipsets. Assumes ```ipset_enabled=1```. Make sure the [requirements](#requirements) are met.|
+|ipset_enabled|boolean|1|Enable/disable use of ipsets for compatible policies. This speeds up service start-up and operation. Make sure the [requirements](#requirements) are met.|
+|dnsmasq_enabled|boolean|1|Enable/disable use of dnsmasq for ipsets. This speeds up service start-up and operation. Also allows matching of third-level domain names (like ```www.domain.com```) when only the second-level domain name (like ```domain.com```) is specified in the policy. Assumes ```ipset_enabled=1```. Make sure the [requirements](#requirements) are met.|
 |udp_proto_enabled|boolean|0|Add ```UDP``` protocol iptables rules for protocol policies with unset local addresses and either local or remote port set. By default (unless this variable is set to 1) only ```TCP``` protocol iptables rules are added.|
 |forward_chain_enabled|boolean|0|Create and use a ```FORWARD``` chain in the mangle table. By default the ```vpn-policy-routing``` only creates and uses the ```PREROUTING``` chain. Use with caution.|
 |input_chain_enabled|boolean|0|Create and use an ```INPUT``` chain in the mangle table. By default the ```vpn-policy-routing``` only creates and uses the ```PREROUTING``` chain. Use with caution.|
