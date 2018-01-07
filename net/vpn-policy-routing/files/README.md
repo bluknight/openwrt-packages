@@ -112,7 +112,7 @@ Some of the ```vpn-policy-routing``` settings are intentionally not exposed thru
 
 
 ## Discussion
-Please head to [LEDE Project Forum](https://forum.lede-project.org/t/openvpn-wireguard-policy-based-routing-web-ui/1422) for discussions of this service.
+Please head to [LEDE Project Forum](https://forum.lede-project.org/t/vpn-policy-based-routing-web-ui-discussion/10389) for discussions of this service.
 
 #### Getting help
 If things are not working as intended, please include the content of ```/etc/config/vpn-policy-routing``` and the output of ```/etc/init.d/vpn-policy-routing support``` with your post, as well as the output of ```/etc/init.d/vpn-policy-routing reload``` with verbosity setting set to 2.
@@ -137,4 +137,4 @@ option route_allowed_ips '0'
 ```
 
 ## Thanks
-I'd like to thank everyone who helped create, test and troubleshoot this service. Without contributions from [@hnyman](https://github.com/hnyman), [@dibdot](https://github.com/dibdot), [@danrl](https://github.com/danrl), [@tohojo](https://github.com/tohojo), [@cybrnook](https://github.com/cybrnook), [@nidstigator](https://github.com/nidstigator), [@AndreBL](https://github.com/AndreBL) and [@dz0ny](https://github.com/dz0ny) and rigorous testing by [@dziny](https://github.com/dziny), [@bluenote73](https://github.com/bluenote73) and [@buckaroo](https://github.com/pgera) it wouldn't have been possible. Wireguard support is courtesy of [Mullvad](https://www.mullvad.net).
+I'd like to thank everyone who helped create, test and troubleshoot this service. Without contributions from [@hnyman](https://github.com/hnyman), [@dibdot](https://github.com/dibdot), [@danrl](https://github.com/danrl), [@tohojo](https://github.com/tohojo), [@cybrnook](https://github.com/cybrnook), [@nidstigator](https://github.com/nidstigator), [@AndreBL](https://github.com/AndreBL) and [@dz0ny](https://github.com/dz0ny) and rigorous testing by [@dziny](https://github.com/dziny), [@bluenote73](https://github.com/bluenote73), [@buckaroo](https://github.com/pgera) and [@Alexander-r](https://github.com/Alexander-r) it wouldn't have been possible. Wireguard support is courtesy of [Mullvad](https://www.mullvad.net).
