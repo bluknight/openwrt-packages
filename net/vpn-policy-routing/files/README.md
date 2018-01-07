@@ -85,7 +85,7 @@ opkg update
 ```
 
 ## Default Settings
-Default configuration has service disabled (use Web UI to enable/start service or run ```uci set vpn-policy-routing.config.enabled=1```) and has some example policies which can be safely deleted.
+Default configuration has service disabled (use Web UI to enable/start service or run ```uci set vpn-policy-routing.config.enabled=1; uci commit vpn-policy-routing;```) and has some example policies which can be safely deleted.
 
 #### Additional settings
 Some of the ```vpn-policy-routing``` settings are intentionally not exposed thru Web UI and require use of either ```uci``` commands or editing of ```/etc/config/vpn-policy-routing``` file on the router. The full list of configuration parameters of ```vpn-policy-routing.config``` section is:
