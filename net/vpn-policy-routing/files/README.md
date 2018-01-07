@@ -26,11 +26,11 @@ You can also set policies for traffic with specific DSCP tag. On Windows 10, for
 - Supports strict policy enforcement, even if the policy gateway is down -- resulting in network being unreachable for specific policy (enabled by default).
 
 #### Use DNSMASQ
-- Service can be set to utilize ```dnsmasq```'s ```ipset``` support. This requires the ```dnsmasq-full``` to be installed (see [How to install dnsmasq-full](#how-to-install-dnsmasq-full)) and it significantly improves the start up time because dnsmasq resolves the domain names and adds them to ipsets in the background. Another benefit if using ```dnsmasq```'s ```ipset``` is that it also automatically adds third-level domains to the ipset; if ```domain.com``` is added to the policy, this policy will affect all ```*.domain.com``` subdomains.
+- Service can be set to utilize ```dnsmasq```'s ```ipset``` support. This requires the ```dnsmasq-full``` to be installed (see [How to install dnsmasq-full](#how-to-install-dnsmasq-full)) and it significantly improves the start up time because dnsmasq resolves the domain names and adds them to ipsets in the background. Another benefit of using ```dnsmasq```'s ```ipset``` is that it also automatically adds third-level domains to the ipset; if ```domain.com``` is added to the policy, this policy will affect all ```*.domain.com``` subdomains.
 
 #### Customization
 - Can be fully configured with ```uci``` commands or by editing ```/etc/config/vpn-policy-routing``` file.
-- Has a companion package (```luci-app-vpn-policy-routing```) so everything can be configured with Web UI.
+- Has a companion package (```luci-app-vpn-policy-routing```) so policies can be configured with Web UI.
 
 #### Other Features
 - Doesn't stay in memory, creates the ip tables and iptables rules which are automatically updated when supported/monitored interface changes.
@@ -127,14 +127,14 @@ WARNING: while paste.ee uploads are unlisted, they are still publicly available.
 ## Notes/Known Issues
 - While you can select down/inactive VPN tunnel in Web UI, the appropriate tunnel must be up/active for the policies to properly work without errors on service start.
 - Service does not alter the default routing. Depending on your VPN tunnel settings (and settings of the VPN server you are connecting to), the default routing might be set to go via WAN or via VPN tunnel. This service affects only routing of the traffic matching the policies. If you want to override default routing, consider adding the following to your OpenVPN tunnel config:
-```
-option route_nopull '1'
-```
+  ```
+  option route_nopull '1'
+  ```
 <!-- option route '0.0.0.0 0.0.0.0'  -->
-  and set the following for your Wireguard tunnel config:
-```
-option route_allowed_ips '0'
-```
+  or set the following option for your Wireguard tunnel config:
+  ```
+  option route_allowed_ips '0'
+  ```
 
 ## Thanks
 I'd like to thank everyone who helped create, test and troubleshoot this service. Without contributions from [@hnyman](https://github.com/hnyman), [@dibdot](https://github.com/dibdot), [@danrl](https://github.com/danrl), [@tohojo](https://github.com/tohojo), [@cybrnook](https://github.com/cybrnook), [@nidstigator](https://github.com/nidstigator), [@AndreBL](https://github.com/AndreBL) and [@dz0ny](https://github.com/dz0ny) and rigorous testing by [@dziny](https://github.com/dziny), [@bluenote73](https://github.com/bluenote73), [@buckaroo](https://github.com/pgera) and [@Alexander-r](https://github.com/Alexander-r) it wouldn't have been possible. Wireguard support is courtesy of [Mullvad](https://www.mullvad.net).
