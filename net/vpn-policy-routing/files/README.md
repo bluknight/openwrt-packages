@@ -88,27 +88,27 @@ opkg update
 Default configuration has service disabled (use Web UI to enable/start service or run ```uci set vpn-policy-routing.config.enabled=1; uci commit vpn-policy-routing;```) and has some example policies which can be safely deleted.
 
 #### Additional settings
-Some of the ```vpn-policy-routing``` settings are intentionally not exposed thru Web UI and require use of either ```uci``` commands or editing of ```/etc/config/vpn-policy-routing``` file on the router. The full list of configuration parameters of ```vpn-policy-routing.config``` section is:
+The ```vpn-policy-routing``` settings are split into ```basic``` and ```advanced``` settings. The full list of configuration parameters of ```vpn-policy-routing.config``` section is:
 
-|Parameter|Type|Default|Comment|
-| --- | --- | --- | --- |
-|enabled|boolean|0|Enable/disable the ```vpn-policy-routing``` service.|
-|strict_enforcement|boolean|1|Enforce policies when their gateway is down. See [Strict enforcement](#strict-enforcement) for more details.|
-|ipv6_enabled|boolean|1|Enable/disable IPv6 support.|
-|ipset_enabled|boolean|1|Enable/disable use of ipsets for compatible policies. This speeds up service start-up and operation. Make sure the [requirements](#requirements) are met.|
-|dnsmasq_enabled|boolean|1|Enable/disable use of dnsmasq for ipsets. See [Use DNSMASQ](#use-dnsmasq) for more details. Assumes ```ipset_enabled=1```. Make sure the [requirements](#requirements) are met.|
-|udp_proto_enabled|boolean|0|Add ```UDP``` protocol iptables rules for protocol policies with unset local addresses and either local or remote port set. By default (unless this variable is set to 1) only ```TCP``` protocol iptables rules are added.|
-|forward_chain_enabled|boolean|0|Create and use a ```FORWARD``` chain in the mangle table. By default the ```vpn-policy-routing``` only creates and uses the ```PREROUTING``` chain. Use with caution.|
-|input_chain_enabled|boolean|0|Create and use an ```INPUT``` chain in the mangle table. By default the ```vpn-policy-routing``` only creates and uses the ```PREROUTING``` chain. Use with caution.|
-|output_chain_enabled|boolean|0|Create and use an ```OUTPUT``` chain in the mangle table. By default the ```vpn-policy-routing``` only creates and uses the ```PREROUTING``` chain. Policies in the OUTPUT chain will affect traffic from the router itself. All policies with unset local address will be duplicated in the ```OUTPUT``` chain. Use with caution.|
-|verbosity|integer|2|Can be set to 0, 1 or 2 to control the console and system log output verbosity of the ```vpn-policy-routing``` service.|
-|wan_tid|integer|201|Starting (WAN) Table ID number for tables created by the ```vpn-policy-routing``` service.|
-|wan_mark|hexadecimal|0x010000|Starting (WAN) fw mark for marks used by the ```vpn-policy-routing``` service. High starting mark is used to avoid conflict with SQM/QoS, this can be changed by user. Change with caution together with ```fw_mask```.|
-|fw_mask|hexadecimal|0xff0000|FW Mask used by the ```vpn-policy-routing``` service. High mask is used to avoid conflict with SQM/QoS, this can be changed by user. Change with caution together with ```wan_mark```.|
-|icmp_interface|string||Set the default ICMP protocol interface (interface name in lower case). Requires ```output_chain_enabled=1```. Use with caution.|
-|ignored_interface|string||Allows to specify the list of interface names (in lower case) to be ignored by the ```vpn-policy-routing``` service. Can be useful if running both VPN server and VPN client on the router.|
-|wan_dscp|integer||Allows use of [DSCP-tag based policies](#dscp-tag-based-policies) for WAN interface.|
-|{interface_name}_dscp|integer||Allows use of [DSCP-tag based policies](#dscp-tag-based-policies) for a VPN interface.|
+|Web UI Section|Parameter|Type|Default|Comment|
+| --- | --- | --- | --- | --- |
+|Basic|enabled|boolean|0|Enable/disable the ```vpn-policy-routing``` service.|
+|Basic|verbosity|integer|2|Can be set to 0, 1 or 2 to control the console and system log output verbosity of the ```vpn-policy-routing``` service.|
+|Basic|strict_enforcement|boolean|1|Enforce policies when their gateway is down. See [Strict enforcement](#strict-enforcement) for more details.|
+|Basic|dnsmasq_enabled|boolean|1|Enable/disable use of dnsmasq for ipsets. See [Use DNSMASQ](#use-dnsmasq) for more details. Assumes ```ipset_enabled=1```. Make sure the [requirements](#requirements) are met.|
+|Basic|ipset_enabled|boolean|1|Enable/disable use of ipsets for compatible policies. This speeds up service start-up and operation. Make sure the [requirements](#requirements) are met. This setting is hidden in Web UI unless ```Use DNSMASQ for domain policies``` is disabled.|
+|Basic|ipv6_enabled|boolean|1|Enable/disable IPv6 support.|
+|Advanced|ignored_interface|list/string||Allows to specify the list of interface names (in lower case) to be ignored by the ```vpn-policy-routing``` service. Can be useful if running both VPN server and VPN client on the router.|
+|Advanced|udp_proto_enabled|boolean|0|Add ```UDP``` protocol iptables rules for protocol policies with unset local addresses and either local or remote port set. By default (unless this variable is set to 1) only ```TCP``` protocol iptables rules are added.|
+|Advanced|forward_chain_enabled|boolean|0|Create and use a ```FORWARD``` chain in the mangle table. By default the ```vpn-policy-routing``` only creates and uses the ```PREROUTING``` chain. Use with caution.|
+|Advanced|input_chain_enabled|boolean|0|Create and use an ```INPUT``` chain in the mangle table. By default the ```vpn-policy-routing``` only creates and uses the ```PREROUTING``` chain. Use with caution.|
+|Advanced|output_chain_enabled|boolean|0|Create and use an ```OUTPUT``` chain in the mangle table. By default the ```vpn-policy-routing``` only creates and uses the ```PREROUTING``` chain. Policies in the OUTPUT chain will affect traffic from the router itself. All policies with unset local address will be duplicated in the ```OUTPUT``` chain. Use with caution.|
+|Advanced|icmp_interface|string||Set the default ICMP protocol interface (interface name in lower case). Requires ```output_chain_enabled=1```. This setting is hidden in Web UI unless ```Create OUTPUT Chain``` is enabled. Use with caution.|
+|Advanced|wan_tid|integer|201|Starting (WAN) Table ID number for tables created by the ```vpn-policy-routing``` service.|
+|Advanced|wan_mark|hexadecimal|0x010000|Starting (WAN) fw mark for marks used by the ```vpn-policy-routing``` service. High starting mark is used to avoid conflict with SQM/QoS, this can be changed by user. Change with caution together with ```fw_mask```.|
+|Advanced|fw_mask|hexadecimal|0xff0000|FW Mask used by the ```vpn-policy-routing``` service. High mask is used to avoid conflict with SQM/QoS, this can be changed by user. Change with caution together with ```wan_mark```.|
+||wan_dscp|integer||Allows use of [DSCP-tag based policies](#dscp-tag-based-policies) for WAN interface.|
+||{interface_name}_dscp|integer||Allows use of [DSCP-tag based policies](#dscp-tag-based-policies) for a VPN interface.|
 
 
 ## Discussion
