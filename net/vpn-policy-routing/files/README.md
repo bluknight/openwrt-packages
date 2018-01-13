@@ -26,14 +26,14 @@ You can also set policies for traffic with specific DSCP tag. On Windows 10, for
 - Supports strict policy enforcement, even if the policy gateway is down -- resulting in network being unreachable for specific policy (enabled by default).
 
 #### Use DNSMASQ
-- Service can be set to utilize ```dnsmasq```'s ```ipset``` support. This requires the ```dnsmasq-full``` to be installed (see [How to install dnsmasq-full](#how-to-install-dnsmasq-full)) and it significantly improves the start up time because ```dnsmasq``` resolves the domain names and adds them to ```ipset```s in background. Another benefit of using ```dnsmasq```'s ```ipset``` is that it also automatically adds third-level domains to the ```ipset```: if ```domain.com``` is added to the policy, this policy will affect all ```*.domain.com``` subdomains. This also works for top-level domains as well, a policy targeting the ```at``` for example, will affect all the ```*.at``` domains.
+- Service can be set to utilize ```dnsmasq```'s ```ipset``` support. This requires the ```dnsmasq-full``` to be installed (see [How to install dnsmasq-full](#how-to-install-dnsmasq-full)) and it significantly improves the start up time because ```dnsmasq``` resolves the domain names and adds them to appropriate ```ipset``` in background. Another benefit of using ```dnsmasq```'s ```ipset``` is that it also automatically adds third-level domains to the ```ipset```: if ```domain.com``` is added to the policy, this policy will affect all ```*.domain.com``` subdomains. This also works for top-level domains as well, a policy targeting the ```at``` for example, will affect all the ```*.at``` domains.
 
 #### Customization
 - Can be fully configured with ```uci``` commands or by editing ```/etc/config/vpn-policy-routing``` file.
 - Has a companion package (```luci-app-vpn-policy-routing```) so policies can be configured with Web UI.
 
 #### Other Features
-- Doesn't stay in memory, creates the routing tables and ```iptables``` rules/```ipset```s which are automatically updated when supported/monitored interface changes.
+- Doesn't stay in memory, creates the routing tables and ```iptables``` rules/```ipset``` entries which are automatically updated when supported/monitored interface changes.
 - Proudly made in Canada, using locally-sourced electrons.
 
 
@@ -53,7 +53,7 @@ Each policy can result in either a new ```iptables``` rule or, if ```ipset``` or
 
 #### Policies Priorities
 If support for ```dnsmasq```'s ```ipset``` and ```ipset``` is disabled, then only ```iptables``` rules are created. The policy priority is the same as its order as listed in Web UI and ```/etc/config/vpn-policy-routing```. The higher the policy is in the Web UI and configuration file, the higher its priority is.
-If support for ```dnsmasq```'s ```ipset``` and ```ipset``` is enabled, then the ```ipset```s have the highest priority (irrelevant of their position in the policies list) and the other policies are processed in the same order as they are listed in Web UI and ```/etc/config/vpn-policy-routing```.
+If support for ```dnsmasq```'s ```ipset``` and ```ipset``` is enabled, then the ```ipset``` entries have the highest priority (irrelevant of their position in the policies list) and the other policies are processed in the same order as they are listed in Web UI and ```/etc/config/vpn-policy-routing```.
 If there are conflicting ```ipset``` entries for different interfaces, the priority is given to the interface which is listed first in the ```/etc/config/network``` file.
 If set, the ```DSCP``` policies trump all other policies, including ```ipset``` ones.
 
@@ -114,8 +114,8 @@ The ```vpn-policy-routing``` settings are split into ```basic``` and ```advanced
 |Basic|enabled|boolean|0|Enable/disable the ```vpn-policy-routing``` service.|
 |Basic|verbosity|integer|2|Can be set to 0, 1 or 2 to control the console and system log output verbosity of the ```vpn-policy-routing``` service.|
 |Basic|strict_enforcement|boolean|1|Enforce policies when their gateway is down. See [Strict enforcement](#strict-enforcement) for more details.|
-|Basic|dnsmasq_enabled|boolean|1|Enable/disable use of ```dnsmasq``` for ```ipset```s. See [Use DNSMASQ](#use-dnsmasq) for more details. Assumes ```ipset_enabled=1```. Make sure the [requirements](#requirements) are met.|
-|Basic|ipset_enabled|boolean|1|Enable/disable use of ```ipset```s for compatible policies. This speeds up service start-up and operation. Make sure the [requirements](#requirements) are met. This setting is hidden in Web UI unless ```Use DNSMASQ for domain policies``` is disabled.|
+|Basic|dnsmasq_enabled|boolean|1|Enable/disable use of ```dnsmasq``` for ```ipset``` entries. See [Use DNSMASQ](#use-dnsmasq) for more details. Assumes ```ipset_enabled=1```. Make sure the [requirements](#requirements) are met.|
+|Basic|ipset_enabled|boolean|1|Enable/disable use of ```ipset``` entries for compatible policies. This speeds up service start-up and operation. Make sure the [requirements](#requirements) are met. This setting is hidden in Web UI unless ```Use DNSMASQ for domain policies``` is disabled.|
 |Basic|ipv6_enabled|boolean|1|Enable/disable IPv6 support.|
 |Advanced|ignored_interface|list/string||Allows to specify the list of interface names (in lower case) to be ignored by the ```vpn-policy-routing``` service. Can be useful if running both VPN server and VPN client on the router.|
 |Advanced|udp_proto_enabled|boolean|0|Add ```UDP``` protocol iptables rules for protocol policies with unset local addresses and either local or remote port set. By default (unless this variable is set to 1) only ```TCP``` protocol iptables rules are added.|
