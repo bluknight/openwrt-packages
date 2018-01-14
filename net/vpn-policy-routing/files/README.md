@@ -52,10 +52,10 @@ Each policy can result in either a new ```iptables``` rule or, if ```ipset``` or
  - Policies with **only** remote IP address or a domain name are created as ```dnsmasq```'s ```ipset``` or an ```ipset``` (if enabled).
 
 #### Policies Priorities
-If support for ```dnsmasq```'s ```ipset``` and ```ipset``` is disabled, then only ```iptables``` rules are created. The policy priority is the same as its order as listed in Web UI and ```/etc/config/vpn-policy-routing```. The higher the policy is in the Web UI and configuration file, the higher its priority is.
-If support for ```dnsmasq```'s ```ipset``` and ```ipset``` is enabled, then the ```ipset``` entries have the highest priority (irrelevant of their position in the policies list) and the other policies are processed in the same order as they are listed in Web UI and ```/etc/config/vpn-policy-routing```.
-If there are conflicting ```ipset``` entries for different interfaces, the priority is given to the interface which is listed first in the ```/etc/config/network``` file.
-If set, the ```DSCP``` policies trump all other policies, including ```ipset``` ones.
+ - If support for ```dnsmasq```'s ```ipset``` and ```ipset``` is disabled, then only ```iptables``` rules are created. The policy priority is the same as its order as listed in Web UI and ```/etc/config/vpn-policy-routing```. The higher the policy is in the Web UI and configuration file, the higher its priority is.
+ - If support for ```dnsmasq```'s ```ipset``` and ```ipset``` is enabled, then the ```ipset``` entries have the highest priority (irrelevant of their position in the policies list) and the other policies are processed in the same order as they are listed in Web UI and ```/etc/config/vpn-policy-routing```.
+ - If there are conflicting ```ipset``` entries for different interfaces, the priority is given to the interface which is listed first in the ```/etc/config/network``` file.
+ - If set, the ```DSCP``` policies trump all other policies, including ```ipset``` ones.
 
 
 ## Requirements
