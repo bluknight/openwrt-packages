@@ -95,7 +95,7 @@ echo -e -n 'untrusted comment: public key 7ffc7517c4cc0c56\nRWR//HUXxMwMVnx7fESO
 opkg update
 ```
 
-###### LEDE Project and OpenWrt 18.xx or later
+###### LEDE Project 17.01.x and OpenWrt 18.xx or later
 ```sh
 opkg update; opkg install uclient-fetch libustream-mbedtls
 echo -e -n 'untrusted comment: public key 7ffc7517c4cc0c56\nRWR//HUXxMwMVnx7fESOKO7x8XoW4/dRidJPjt91hAAU2L59mYvHy0Fa\n' > /tmp/stangri-repo.pub && opkg-key add /tmp/stangri-repo.pub
@@ -104,7 +104,7 @@ opkg update
 ```
 
 ## Default Settings
-Default configuration has service disabled (use Web UI to enable/start service or run ```uci set vpn-policy-routing.config.enabled=1; uci commit vpn-policy-routing;```) and has some example policies which can be safely deleted.
+Default configuration has service disabled (use Web UI to enable/start service or run ```uci set vpn-policy-routing.config.enabled=1; uci commit vpn-policy-routing;```).
 
 #### Additional settings
 The ```vpn-policy-routing``` settings are split into ```basic``` and ```advanced``` settings. The full list of configuration parameters of ```vpn-policy-routing.config``` section is:
@@ -117,6 +117,7 @@ The ```vpn-policy-routing``` settings are split into ```basic``` and ```advanced
 |Basic|dnsmasq_enabled|boolean|1|Enable/disable use of ```dnsmasq``` for ```ipset``` entries. See [Use DNSMASQ](#use-dnsmasq) for more details. Assumes ```ipset_enabled=1```. Make sure the [requirements](#requirements) are met.|
 |Basic|ipset_enabled|boolean|1|Enable/disable use of ```ipset``` entries for compatible policies. This speeds up service start-up and operation. Make sure the [requirements](#requirements) are met. This setting is hidden in Web UI unless ```Use DNSMASQ for domain policies``` is disabled.|
 |Basic|ipv6_enabled|boolean|1|Enable/disable IPv6 support.|
+|Advanced|supported_interface|list/string||Allows to specify the list of interface names (in lower case) to be explicitly supported by the ```vpn-policy-routing``` service. Can be useful if your OpenVPN tunnels have dev option other than tun\* or tap\*.|
 |Advanced|ignored_interface|list/string||Allows to specify the list of interface names (in lower case) to be ignored by the ```vpn-policy-routing``` service. Can be useful if running both VPN server and VPN client on the router.|
 |Advanced|udp_proto_enabled|boolean|0|Add ```UDP``` protocol iptables rules for protocol policies with unset local addresses and either local or remote port set. By default (unless this variable is set to 1) only ```TCP``` protocol iptables rules are added.|
 |Advanced|forward_chain_enabled|boolean|0|Create and use a ```FORWARD``` chain in the mangle table. By default the ```vpn-policy-routing``` only creates and uses the ```PREROUTING``` chain. Use with caution.|
@@ -129,6 +130,33 @@ The ```vpn-policy-routing``` settings are split into ```basic``` and ```advanced
 ||wan_dscp|integer||Allows use of [DSCP-tag based policies](#dscp-tag-based-policies) for WAN interface.|
 ||{interface_name}_dscp|integer||Allows use of [DSCP-tag based policies](#dscp-tag-based-policies) for a VPN interface.|
 
+#### Example Policies
+```
+config policy
+	option comment 'Plex Local Server'
+	option gateway 'wan'
+	option local_ports '32400'
+
+config policy
+	option comment 'Plex Remote Servers'
+	option gateway 'wan'
+	option remote_addresses 'plex.tv my.plexapp.com'
+
+config policy
+	option comment 'LogmeIn Hamachi'
+	option gateway 'wan'
+	option remote_addresses '25.0.0.0/8 hamachi.cc hamachi.com logmein.com'
+
+config policy
+	option comment 'Local Subnet'
+	option gateway 'wan'
+	option local_addresses '192.168.1.81/29'
+
+config policy
+	option comment 'Local IP'
+	option gateway 'wan'
+	option local_addresses '192.168.1.70'
+```
 
 ## Discussion
 Please head to [LEDE Project Forum](https://forum.lede-project.org/t/vpn-policy-based-routing-web-ui-discussion/10389) for discussions of this service.

@@ -33,32 +33,38 @@ output_fail() { s=1; case $verbosity in 1) output "$_FAIL_";; 2) output "$__FAIL
 output_failn() { case $verbosity in 1) output "$_FAIL_\n";; 2) output "$__FAIL__\n";; esac; }
 output() { [ $# -ne 1 ] && { [ ! $((verbosity & $1)) -gt 0 ] && return 0 || shift; }; local msg; msg=$(echo -n "${1/$serviceName /service }" | sed 's|\\033\[[0-9]\?;\?[0-9]\?[0-9]\?m||g'); [ -t 1 ] && echo -e -n "$1"; [ "$(echo -e -n $msg | wc -l)" -gt 0 ] && logger -t "${packageName:-service} [$$]" "$(echo -e -n ${logmsg}${msg})" && logmsg='' || logmsg=${logmsg}${msg}; }
 
-export verbosity strictMode wanTableID wanMark fwMask ipv6Enabled ipsetEnabled dnsmasqEnabled udpProtoEnabled icmpIface forwardChainEnabled=0 inputChainEnabled=0 outputChainEnabled=0 ignoredIfaces=""
+export serviceEnabled verbosity strictMode wanTableID wanMark fwMask ipv6Enabled ipsetEnabled dnsmasqEnabled udpProtoEnabled icmpIface forwardChainEnabled=0 inputChainEnabled=0 outputChainEnabled=0 ignoredIfaces="" supportedIfaces=""
 export wanIface4 wanIface6 ifaceMark ifaceTableID ifacesListAll ifacesListSupported wanGW4 wanGW6
 
-_build_ifaces_lists() { ifacesListAll="${ifacesListAll}${1} "; is_supported_interface "$1" && ifacesListSupported="${ifacesListSupported}${1} "; }
+_build_ifaces_lists() { [ "$1" != "loopback" ] && ifacesListAll="${ifacesListAll}${1} "; is_supported_interface "$1" && ifacesListSupported="${ifacesListSupported}${1} "; }
 vpr_find_wan_iface() { local _iface; network_find_wan _iface; if [ -z "$_iface" ] || ( is_wan $_iface && is_tunnel $_iface ); then for _iface in $ifacesListAll; do [ "${_iface%$1}" != "$_iface" ] && break || unset _iface; done; fi; eval "$2=$_iface"; }
 
-is_enabled() {
-		local sleepCount=1 serviceEnabled
-		config_load "$packageName"
-		config_get_bool serviceEnabled 'config' 'enabled' 0
-		config_get_bool strictMode     'config' 'strict_enforcement' 1
-		config_get_bool ipv6Enabled    'config' 'ipv6_enabled' 1
-		config_get_bool ipsetEnabled   'config' 'ipset_enabled' 1
-		config_get_bool dnsmasqEnabled 'config' 'dnsmasq_enabled' 0
-		config_get_bool udpProtoEnabled     'config' 'udp_proto_enabled' 0
-		config_get_bool forwardChainEnabled 'config' 'forward_chain_enabled' 0
-		config_get_bool inputChainEnabled   'config' 'input_chain_enabled' 0
-		config_get_bool outputChainEnabled  'config' 'output_chain_enabled' 0
-		config_get verbosity           'config' 'verbosity' '2'
-		config_get wanTableID          'config' 'wan_tid' '201'
-		config_get wanMark             'config' 'wan_mark' '0x010000'
-		config_get fwMask              'config' 'fw_mask' '0xff0000'
-		config_get icmpIface           'config' 'icmp_interface'
-		config_get ignoredIfaces       'config' 'ignored_interface'
+load_package_config() {
+	config_load "$packageName"
+	config_get_bool serviceEnabled      'config' 'enabled' 0
+	config_get_bool strictMode          'config' 'strict_enforcement' 1
+	config_get_bool ipv6Enabled         'config' 'ipv6_enabled' 1
+	config_get_bool ipsetEnabled        'config' 'ipset_enabled' 1
+	config_get_bool dnsmasqEnabled      'config' 'dnsmasq_enabled' 0
+	config_get_bool udpProtoEnabled     'config' 'udp_proto_enabled' 0
+	config_get_bool forwardChainEnabled 'config' 'forward_chain_enabled' 0
+	config_get_bool inputChainEnabled   'config' 'input_chain_enabled' 0
+	config_get_bool outputChainEnabled  'config' 'output_chain_enabled' 0
+	config_get verbosity                'config' 'verbosity' '2'
+	config_get wanTableID               'config' 'wan_tid' '201'
+	config_get wanMark                  'config' 'wan_mark' '0x010000'
+	config_get fwMask                   'config' 'fw_mask' '0xff0000'
+	config_get icmpIface                'config' 'icmp_interface'
+	config_get ignoredIfaces            'config' 'ignored_interface'
+	config_get supportedIfaces          'config' 'supported_interface'
+	source /lib/functions/network.sh
+}
 
-		[ $serviceEnabled -gt 0 ] || { output "$_ERROR_: $serviceName is not enabled!\n"; return 1; }
+is_enabled() {
+		local sleepCount=1
+		load_package_config
+
+		[ $serviceEnabled -gt 0 ] || return 1
 		if [ $dnsmasqEnabled -ne 0 ]; then
 			if ! dnsmasq --version | grep -q " ipset "; then
 				output "$_ERROR_: dnsmasq support is enabled in $packageName, but installed dnsmasq does not support ipsets!\n"
@@ -67,7 +73,7 @@ is_enabled() {
 				ipsetEnabled=1
 			fi
 		fi
-		source /lib/functions/network.sh; config_load 'network'; config_foreach _build_ifaces_lists 'interface';
+		config_load 'network'; config_foreach _build_ifaces_lists 'interface';
 
 		while : ; do
 			vpr_find_wan_iface 'wan' wanIface4; vpr_find_wan_iface 'wan6' wanIface6;
@@ -79,6 +85,7 @@ is_enabled() {
 		done
 
 		if [ -n "$wanGW" ]; then
+			mkdir -p "${PID%/*}"; mkdir -p "${dnsmasqFile%/*}";
 			unset ifacesListSupported; config_foreach _build_ifaces_lists 'interface'; return 0;
 		else
 			output "$_ERROR_: $serviceName failed to discover WAN gateway!\n"; return 1;
@@ -93,14 +100,14 @@ is_tunnel() { if  is_oc "$1" || is_ovpn "$1" || is_pptp "$1" || is_wg "$1"; then
 is_wan() { if [[ -n "$wanIface4" && "$1" == "$wanIface4" ]]; then return 0; else return 1; fi; }
 is_wan6() { if [[ -n "$wanIface6" && "$1" == "$wanIface6" ]]; then return 0; else return 1; fi; }
 is_ignored_interface() { if [ "${ignoredIfaces/$1}" != "$ignoredIfaces" ]; then return 0; else return 1; fi; }
-is_supported_interface() { if ! is_ignored_interface "$1" && ( is_wan "$1" || is_wan6 "$1" || is_tunnel "$1" ); then return 0; else return 1; fi; }
+is_supported_interface() { if [ "${supportedIfaces/$1}" != "$supportedIfaces" ]; then return 0; fi; if ! is_ignored_interface "$1" && ( is_wan "$1" || is_wan6 "$1" || is_tunnel "$1" ); then return 0; else return 1; fi; }
 is_ipv4() { if expr "$1" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then return 0; else return 1; fi; }
 is_ipv6() { if [ "${1//:}" != "$1" ]; then return 0; else return 1; fi; }
 is_netmask() { local ip="${1%/*}"; if [ "$ip" != "$1" ] && is_ipv4 $ip; then return 0; else return 1; fi; }
 is_domain() { if [ "${1//[a-zA-Z-]}" != "$1" ]; then return 0; else return 1; fi; }
 
 ipt() {
-  local d failFlagIpv4=0 failFlagIpv6=0
+  local d failFlagIpv4=0 failFlagIpv6=1
 	d="${*//-A/-D}"; if [ "$d" != "$*" ]; then
 		iptables $d >/dev/null 2>&1
 		[ $ipv6Enabled -ne 0 ] && ip6tables $d >/dev/null 2>&1
@@ -120,9 +127,9 @@ ipt() {
 
 	d="$*"
 	iptables $d >/dev/null 2>&1 || failFlagIpv4=1
-	if [ $ipv6Enabled -ne 0 ]; then ip6tables $d >/dev/null 2>&1 || failFlagIpv6=1; fi
+	if [ $ipv6Enabled -ne 0 ]; then ip6tables $d >/dev/null 2>&1 && failFlagIpv6=0; fi
 
-	if [[ $failFlagIpv4 -eq 0 && $failFlagIpv6 -eq 0 ]]; then return 0; else return 1; fi
+	if [[ $failFlagIpv4 -eq 0 || $failFlagIpv6 -eq 0 ]]; then return 0; else return 1; fi
 }
 
 ips() {
@@ -249,7 +256,9 @@ process_policy(){
 	fi
 
 #	lport="$(echo $lport | sed -n 's/ \+/,/gp')"; rport="$(echo $rport | sed -n 's/ \+/,/gp')";
-	r_process_policy "$comment" "$iface" "$laddr" "${lport// /,}" "$raddr" "${rport// /,}"
+	lport="${lport//  / }"; lport="${lport// /,}";
+	rport="${rport//  / }"; rport="${rport// /,}";
+	r_process_policy "$comment" "$iface" "$laddr" "$lport" "$raddr" "$rport"
 	if [ -n "$processPolicyStatus" ]; then
 		output_fail
 		errorStatusSummary="${errorStatusSummary}${processPolicyStatus}\n"
@@ -313,7 +322,7 @@ table_create(){
 		ip -4 route flush cache || s=1
 		ip -4 rule add fwmark "$mark" table "$tid" || s=1
 		if [ $ipv6Enabled -ne 0 ]; then
-			[ -n "$gw6" ] && ip -6 route show | grep " dev $dev6 " | while read -r i; do ip -r route add $i table "$tid" >/dev/null 2>&1 || s=1; done
+			[ -n "$gw6" ] && ip -6 route show | grep " dev $dev6 " | while read -r i; do ip -6 route add $i table "$tid" >/dev/null 2>&1 || s=1; done
 			ip -6 route flush cache || s=1
 			ip -6 rule add fwmark "$mark" table "$tid" || s=1
 		fi
@@ -426,7 +435,7 @@ start_service() {
 
 stop_service() {
 	if create_lock; then
-		is_enabled || return 1
+		load_package_config
 		config_load 'network'; config_foreach process_interface 'interface' 'destroy'
 		ipt -t mangle -D PREROUTING -m mark --mark 0x00/${fwMask} -g VPR_PREROUTING
 		ipt -t mangle -F VPR_PREROUTING; ipt -t mangle -X VPR_PREROUTING;
@@ -449,10 +458,6 @@ stop_service() {
 	fi
 }
 
-reload_service(){
-	start_service
-}
-
 service_triggers() {
 		local n
 		is_enabled || return 1
@@ -462,12 +467,9 @@ service_triggers() {
 			validate_policies
 		procd_close_validate
 
-		procd_add_reload_trigger "$packageName"
 		procd_add_reload_trigger 'firewall'
 		procd_add_reload_trigger 'openvpn'
-
 		procd_open_trigger
-			procd_add_config_trigger "config.change" "$packageName" /etc/init.d/${packageName} reload
 			for n in $ifacesListSupported; do procd_add_reload_interface_trigger "$n"; procd_add_interface_trigger "interface.*" "$n" /etc/init.d/${packageName} reload; done;
 			output "$serviceName monitoring interfaces: $ifacesListSupported"; output_okn;
 		procd_close_trigger
